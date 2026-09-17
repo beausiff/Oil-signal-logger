@@ -181,13 +181,18 @@ def score_news(
             response = client.messages.create(
                 model=config.ANTHROPIC_MODEL,
                 max_tokens=config.ANTHROPIC_MAX_TOKENS,
-                temperature=config.ANTHROPIC_TEMPERATURE,
+                output_config={"effort": config.ANTHROPIC_EFFORT},
                 system=system_prompt,
                 messages=messages,
             )
         except Exception as exc:  # noqa: BLE001 - auth, rate limit, overload, network
             last_error = "%s: %s" % (type(exc).__name__, exc)
-            usage.error = "scorer_api_error:%s" % type(exc).__name__
+            # Carry the reason into the sheet: the exception class alone does
+            # not say whether it was the key, the model or the request shape.
+            usage.error = "scorer_api_error:%s:%s" % (
+                type(exc).__name__,
+                str(exc).replace("\n", " ")[:160],
+            )
             print("scorer call failed (attempt %d): %s" % (attempt, last_error))
             if attempt == 2:
                 return None, usage

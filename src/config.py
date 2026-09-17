@@ -8,11 +8,13 @@ RULES_VERSION = "v1"
 
 # ---------------------------------------------------------------- model ----
 ANTHROPIC_MODEL = "claude-sonnet-5"
-ANTHROPIC_MAX_TOKENS = 600
-ANTHROPIC_TEMPERATURE = 0.0
+# Sonnet 5 runs adaptive thinking and rejects `temperature`, so the budget has
+# to cover reasoning tokens as well as the JSON. `effort` is the cost dial.
+ANTHROPIC_MAX_TOKENS = 2000
+ANTHROPIC_EFFORT = "low"
 # USD per million tokens, used only to write an estimated cost into `notes`.
-COST_PER_MTOK_INPUT = 3.00
-COST_PER_MTOK_OUTPUT = 15.00
+COST_PER_MTOK_INPUT = 2.00
+COST_PER_MTOK_OUTPUT = 10.00
 
 # ----------------------------------------------------------------- news ----
 NEWS_LOOKBACK_MINUTES = 90

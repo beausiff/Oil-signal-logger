@@ -134,7 +134,8 @@ def test_an_api_failure_retries_once_then_gives_up():
     result, usage = scorer.score_news([{"title": "x"}], [], client=client)
     assert result is None
     assert client.calls == 2
-    assert usage.error == "scorer_api_error:ConnectionError"
+    assert usage.error.startswith("scorer_api_error:ConnectionError")
+    assert "boom" in usage.error  # the reason reaches the sheet, not just the class
 
 
 def test_an_api_failure_that_recovers_on_the_retry():
@@ -149,3 +150,22 @@ def test_an_api_failure_that_recovers_on_the_retry():
     result, usage = scorer.score_news([{"title": "x"}], [], client=client)
     assert result.score == 7
     assert usage.attempts == 2
+
+
+# --------------------------------------------------- the request we send --
+
+def test_temperature_is_never_sent():
+    """Sonnet 5 rejects `temperature` with a 400. It must not come back."""
+    client = FakeClient([json.dumps(GOOD)])
+    scorer.score_news([{"title": "x"}], [], client=client)
+    assert "temperature" not in client.calls[0]
+
+
+def test_the_request_carries_the_model_effort_and_budget():
+    client = FakeClient([json.dumps(GOOD)])
+    scorer.score_news([{"title": "x"}], [], client=client)
+    sent = client.calls[0]
+    assert sent["model"] == scorer.config.ANTHROPIC_MODEL
+    assert sent["output_config"] == {"effort": scorer.config.ANTHROPIC_EFFORT}
+    assert sent["max_tokens"] == scorer.config.ANTHROPIC_MAX_TOKENS
+    assert sent["system"] == scorer.load_system_prompt()
