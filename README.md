@@ -68,11 +68,15 @@ Add each of these:
 
 | Secret | Value |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | your Anthropic key |
-| `OILPRICE_API_KEY` | your OilPriceAPI key |
+| `ANTHROPIC` | your Anthropic key |
+| `OILTRACKER` | your OilPriceAPI key |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | the **entire contents** of the JSON file from step 2, pasted in whole |
 | `SHEET_ID` | the Sheet ID from step 1 |
 | `GNEWS_API_KEY` | optional, leave out if you skipped it |
+
+The first two secrets are mapped to the `ANTHROPIC_API_KEY` and
+`OILPRICE_API_KEY` environment variables in `.github/workflows/hourly.yml`.
+The code only ever reads the environment variable names.
 
 Nothing is hardcoded. Nothing is printed to the logs.
 
