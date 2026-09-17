@@ -169,3 +169,33 @@ def test_the_request_carries_the_model_effort_and_budget():
     assert sent["output_config"] == {"effort": scorer.config.ANTHROPIC_EFFORT}
     assert sent["max_tokens"] == scorer.config.ANTHROPIC_MAX_TOKENS
     assert sent["system"] == scorer.load_system_prompt()
+
+
+# ------------------------------------------------- workspace scoped keys --
+
+def test_no_workspace_header_when_none_is_configured(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID", raising=False)
+    captured = {}
+
+    def fake_ctor(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(scorer.anthropic, "Anthropic", fake_ctor)
+    scorer._client()
+    assert captured["default_headers"] is None
+
+
+def test_workspace_header_is_sent_for_an_org_scoped_key(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "wrkspc_123")
+    captured = {}
+
+    def fake_ctor(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(scorer.anthropic, "Anthropic", fake_ctor)
+    scorer._client()
+    assert captured["default_headers"] == {"anthropic-workspace-id": "wrkspc_123"}

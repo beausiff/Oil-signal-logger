@@ -34,6 +34,9 @@ jobs:
           # The repository secrets are named ANTHROPIC and OILTRACKER.
           # The code always reads the *_API_KEY names below.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          # Only needed when the Anthropic key is organisation scoped rather
+          # than workspace scoped. Harmless to leave unset.
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           OILPRICE_API_KEY: ${{ secrets.OILTRACKER }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SHEET_ID: ${{ secrets.SHEET_ID }}

@@ -141,10 +141,19 @@ def parse_and_validate(text: str) -> Score:
 
 
 def _client() -> anthropic.Anthropic:
+    """Build the client, adding the workspace header when one is configured.
+
+    An organisation level key must name a workspace on every request. A
+    workspace scoped key carries it already, so ANTHROPIC_WORKSPACE_ID is
+    optional and only set when the key needs it.
+    """
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
-    return anthropic.Anthropic(api_key=api_key)
+
+    workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID", "").strip()
+    headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
+    return anthropic.Anthropic(api_key=api_key, default_headers=headers)
 
 
 def score_news(

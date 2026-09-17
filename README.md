@@ -72,7 +72,15 @@ Add each of these:
 | `OILTRACKER` | your OilPriceAPI key |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | the **entire contents** of the JSON file from step 2, pasted in whole |
 | `SHEET_ID` | the Sheet ID from step 1 |
+| `ANTHROPIC_WORKSPACE_ID` | only if the Anthropic key is organisation scoped, see below |
 | `GNEWS_API_KEY` | optional, leave out if you skipped it |
+
+**Workspace scoping.** An Anthropic key created at organisation level must name
+a workspace on every request, and the API rejects it otherwise. Two ways round
+it: create the key inside a workspace in the Console, which needs no extra
+secret, or keep the organisation key and add `ANTHROPIC_WORKSPACE_ID`. A
+workspace scoped key is preferable because the Console then reports this
+experiment's spend on its own line.
 
 The first two secrets are mapped to the `ANTHROPIC_API_KEY` and
 `OILPRICE_API_KEY` environment variables in `.github/workflows/hourly.yml`.
