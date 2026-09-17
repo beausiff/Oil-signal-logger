@@ -2,7 +2,11 @@ name: hourly
 
 on:
   schedule:
-    - cron: "5 * * * *"
+    # Deliberately NOT near the top of the hour. GitHub warns that the
+    # schedule event is delayed during peak load, and the start of every hour
+    # is the peak: the first two runs at :05 were dropped entirely. :23 sits
+    # in a quiet minute.
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

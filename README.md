@@ -104,6 +104,13 @@ again with dry run unticked and check the `signals` tab.
 Once a correct row appears, the hourly schedule is already live and needs nothing
 further from you.
 
+**About the schedule.** The cron runs at 23 minutes past, not on the hour.
+GitHub delays or drops scheduled runs during peak load, and the top of the hour
+is the peak. Even off peak the schedule is best effort, so expect the occasional
+missing hour. Nothing breaks: each `signals` row stands on its own, and the
+outcome columns simply stay blank when no logged price falls within 20 minutes
+of the target time. Gaps cost a little data, never correctness.
+
 To work on it locally instead:
 
 ```bash
