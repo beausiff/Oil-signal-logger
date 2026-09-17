@@ -131,7 +131,7 @@ def run(dry_run: bool = False) -> int:
         if usage:
             notes.append(usage.as_note())
         if scored is None:
-            notes.append("scorer_invalid_json")
+            notes.append(usage.error or "scorer_unavailable")
     else:
         notes.append("no_new_news")
 

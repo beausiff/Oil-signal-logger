@@ -125,7 +125,11 @@ def test_invalid_claude_json_logs_an_error_and_skips_trade_logic(wired, monkeypa
     wire_price(monkeypatch, 80.0)
     monkeypatch.setattr(
         main.scorer, "score_news",
-        lambda h, s, **k: (None, scorer.Usage(input_tokens=900, output_tokens=40, attempts=2)),
+        lambda h, s, **k: (
+            None,
+            scorer.Usage(input_tokens=900, output_tokens=40, attempts=2,
+                         error="scorer_invalid_json"),
+        ),
     )
 
     assert main.run() == 0
@@ -165,4 +169,21 @@ def test_weekend_run_logs_news_but_never_trades(wired, monkeypatch):
     assert row["position_after"] == "flat"
     assert len(wired.records(HEADLINES)) == 1
     assert wired.records(sheets.WEEKEND_GAPS)[0]["weekend_start_date"] == "2026-09-18"
+    assert wired.records(TRADES) == []
+
+
+def test_an_unavailable_model_logs_an_error_row_and_does_not_crash(wired, monkeypatch):
+    """A missing key or an Anthropic outage must not kill the hourly run."""
+    wire_news(monkeypatch, [fake_headline()])
+    wire_price(monkeypatch, 80.0)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    assert main.run() == 0
+
+    row = wired.records(SIGNALS)[0]
+    assert row["action"] == "error"
+    assert row["score"] == ""
+    assert "scorer_no_key" in row["notes"]
+    assert row["brent_price"] == 80.0
+    assert len(wired.records(HEADLINES)) == 1
     assert wired.records(TRADES) == []

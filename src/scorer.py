@@ -40,6 +40,7 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     attempts: int = 0
+    error: str = ""
 
     @property
     def cost_usd(self) -> float:
@@ -151,24 +152,47 @@ def score_news(
     recent_signals: Sequence[dict],
     client: Optional[anthropic.Anthropic] = None,
 ):
-    """Return (Score|None, Usage). None means both attempts produced bad JSON."""
-    client = client or _client()
+    """Return (Score|None, Usage).
+
+    None means we could not get a valid score this hour, for any reason: a
+    missing key, an API failure, or two rounds of invalid JSON. The caller logs
+    an `error` row and skips the trade logic. An hourly job never dies because
+    one dependency was unavailable for one hour.
+    """
+    usage = Usage()
+
+    try:
+        client = client or _client()
+    except RuntimeError as exc:
+        usage.error = "scorer_no_key"
+        print("scorer unavailable: %s" % exc)
+        return None, usage
+
     system_prompt = load_system_prompt()
     user_message = build_user_message(headlines, recent_signals)
-    usage = Usage()
 
     messages = [{"role": "user", "content": user_message}]
     last_error = ""
 
     for attempt in (1, 2):
         usage.attempts = attempt
-        response = client.messages.create(
-            model=config.ANTHROPIC_MODEL,
-            max_tokens=config.ANTHROPIC_MAX_TOKENS,
-            temperature=config.ANTHROPIC_TEMPERATURE,
-            system=system_prompt,
-            messages=messages,
-        )
+
+        try:
+            response = client.messages.create(
+                model=config.ANTHROPIC_MODEL,
+                max_tokens=config.ANTHROPIC_MAX_TOKENS,
+                temperature=config.ANTHROPIC_TEMPERATURE,
+                system=system_prompt,
+                messages=messages,
+            )
+        except Exception as exc:  # noqa: BLE001 - auth, rate limit, overload, network
+            last_error = "%s: %s" % (type(exc).__name__, exc)
+            usage.error = "scorer_api_error:%s" % type(exc).__name__
+            print("scorer call failed (attempt %d): %s" % (attempt, last_error))
+            if attempt == 2:
+                return None, usage
+            continue
+
         usage.input_tokens += getattr(response.usage, "input_tokens", 0) or 0
         usage.output_tokens += getattr(response.usage, "output_tokens", 0) or 0
 
@@ -179,6 +203,7 @@ def score_news(
             return parse_and_validate(text), usage
         except (ValueError, json.JSONDecodeError) as exc:
             last_error = str(exc)
+            usage.error = "scorer_invalid_json"
             if attempt == 2:
                 break
             messages = [
