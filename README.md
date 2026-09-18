@@ -111,6 +111,12 @@ missing hour. Nothing breaks: each `signals` row stands on its own, and the
 outcome columns simply stay blank when no logged price falls within 20 minutes
 of the target time. Gaps cost a little data, never correctness.
 
+Because the schedule is unreliable, the forward price columns do **not** depend
+on it. Each run fills them from the prices it logged itself where it can, and
+looks up anything still missing from the price API in a single range call
+covering every outstanding horizon at once. A dropped run therefore costs one
+scored hour, not the outcome data for the hours around it.
+
 To work on it locally instead:
 
 ```bash

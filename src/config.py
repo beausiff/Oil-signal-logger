@@ -44,6 +44,8 @@ GNEWS_ENDPOINT = "https://gnews.io/api/v4/search"
 # ---------------------------------------------------------------- price ----
 OILPRICE_BASE_URL = "https://api.oilpriceapi.com/v1"
 OILPRICE_LATEST_PATH = "/prices/latest"
+OILPRICE_RANGE_PATH = "/prices"
+OILPRICE_RANGE_PER_PAGE = 1000
 BRENT_CODE = "BRENT_CRUDE_USD"
 HTTP_TIMEOUT_SECONDS = 20
 
@@ -73,6 +75,14 @@ POSITION_SIZE_UNITS = 1
 CONTEXT_SIGNAL_ROWS = 24
 OUTCOME_HORIZONS_HOURS = {"1h": 1, "4h": 4, "24h": 24, "72h": 72}
 OUTCOME_MATCH_WINDOW_MINUTES = 20
+
+# Forward prices are looked up from the price API rather than inferred from
+# whichever runs happened to fire. GitHub's scheduler drops runs, so relying on
+# our own logged prices leaves holes in exactly the columns the experiment is
+# built to measure. At most ONE range call per run, covering every pending
+# horizon at once.
+OUTCOME_USE_PRICE_API = True
+OUTCOME_API_MAX_RANGE_DAYS = 8
 
 # -------------------------------------------------------------- weekend ----
 MONDAY_COMPLETION_HOUR_UTC = 12
