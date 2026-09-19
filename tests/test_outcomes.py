@@ -120,10 +120,11 @@ def test_a_dropped_run_is_filled_from_the_api():
     first = client.records(SIGNALS)[0]
     assert first["price_1h"] == 82.5
     assert first["move_1h_pct"] == pytest.approx(3.125)
-    assert len(fetcher.calls) == 1, "one range call per run, not one per cell"
+    # Two distinct targets outstanding (+1h and +4h), so two narrow windows.
+    assert len(fetcher.calls) == 2
 
 
-def test_one_call_covers_every_outstanding_horizon():
+def test_every_outstanding_horizon_is_asked_for():
     rows = [row(0, 80.0)]
     client = FakeSheets({SIGNALS: rows})
     fetcher = SpyFetcher([
@@ -139,7 +140,7 @@ def test_one_call_covers_every_outstanding_horizon():
     assert first["price_4h"] == 82.0
     assert first["price_24h"] == 83.0
     assert first["price_72h"] == ""  # horizon has not passed yet
-    assert len(fetcher.calls) == 1
+    assert len(fetcher.calls) == 3  # one window per distinct target
 
 
 def test_api_failure_leaves_the_cell_blank_without_crashing():
@@ -159,18 +160,67 @@ def test_api_points_outside_the_window_are_still_rejected():
     assert client.records(SIGNALS)[0]["price_1h"] == ""
 
 
-def test_the_range_request_is_capped_to_the_configured_days():
-    """A long outage must not ask for an unbounded history."""
-    old_row = row(0, 80.0)
-    client = FakeSheets({SIGNALS: [old_row]})
+def test_targets_older_than_the_servable_range_are_not_requested():
+    """No point asking for history the API will not serve."""
+    client = FakeSheets({SIGNALS: [row(0, 80.0)]})
     fetcher = SpyFetcher()
-    now = BASE + timedelta(days=30)
+
+    outcomes.backfill(client, BASE + timedelta(days=30), fetch_range=fetcher)
+
+    assert fetcher.calls == []
+    assert client.records(SIGNALS)[0]["price_1h"] == ""
+
+
+def test_every_requested_window_stays_inside_the_servable_range():
+    client = FakeSheets({SIGNALS: [row(0, 80.0), row(160, 80.0)]})
+    fetcher = SpyFetcher()
+    now = BASE + timedelta(days=7)
 
     outcomes.backfill(client, now, fetch_range=fetcher)
 
+    floor = now - timedelta(days=outcomes.config.OUTCOME_API_MAX_RANGE_DAYS)
+    assert fetcher.calls, "the recent row should still be asked for"
+    for start, end in fetcher.calls:
+        assert start >= floor
+        assert end <= now
+        assert start < end
+
+
+def test_overlapping_windows_are_merged_into_one_call():
+    """Targets minutes apart must not become two near identical requests."""
+    rows = [row(0, 80.0), row(0.1, 80.0)]  # 6 minutes apart
+    client = FakeSheets({SIGNALS: rows})
+    fetcher = SpyFetcher()
+
+    outcomes.backfill(client, BASE + timedelta(hours=1, minutes=30), fetch_range=fetcher)
+
+    assert len(fetcher.calls) == 1
     start, end = fetcher.calls[0]
-    assert end == now
-    assert start == now - timedelta(days=outcomes.config.OUTCOME_API_MAX_RANGE_DAYS)
+    assert end - start > timedelta(minutes=40)  # widened to cover both
+
+
+def test_the_number_of_calls_per_run_is_bounded():
+    """A long outage catches up over several runs, not in one burst."""
+    rows = [row(i * 2, 80.0) for i in range(20)]
+    client = FakeSheets({SIGNALS: rows})
+    fetcher = SpyFetcher()
+
+    outcomes.backfill(client, BASE + timedelta(hours=60), fetch_range=fetcher)
+
+    assert len(fetcher.calls) == outcomes.config.OUTCOME_API_CALLS_PER_RUN
+
+
+def test_the_oldest_targets_are_served_first():
+    """Oldest are closest to ageing out of what the API will serve."""
+    rows = [row(i * 2, 80.0) for i in range(20)]
+    client = FakeSheets({SIGNALS: rows})
+    fetcher = SpyFetcher()
+
+    outcomes.backfill(client, BASE + timedelta(hours=60), fetch_range=fetcher)
+
+    starts = [start for start, _ in fetcher.calls]
+    assert starts == sorted(starts)
+    assert starts[0] < BASE + timedelta(hours=2)
 
 
 def test_our_own_price_wins_when_both_sources_have_one():

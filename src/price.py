@@ -133,7 +133,16 @@ def fetch_brent_range(
         print("price range returned bad JSON")
         return []
 
-    print("price range %s to %s: %d points" % (start_utc.isoformat(), end_utc.isoformat(), len(points)))
+    if len(points) >= config.OILPRICE_RANGE_PAGE_CAP:
+        print(
+            "price range %s to %s: %d points (AT PAGE CAP, window may be truncated)"
+            % (start_utc.isoformat(), end_utc.isoformat(), len(points))
+        )
+    else:
+        print(
+            "price range %s to %s: %d points"
+            % (start_utc.isoformat(), end_utc.isoformat(), len(points))
+        )
     return points
 
 

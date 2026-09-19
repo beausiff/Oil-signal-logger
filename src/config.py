@@ -45,7 +45,11 @@ GNEWS_ENDPOINT = "https://gnews.io/api/v4/search"
 OILPRICE_BASE_URL = "https://api.oilpriceapi.com/v1"
 OILPRICE_LATEST_PATH = "/prices/latest"
 OILPRICE_RANGE_PATH = "/prices"
-OILPRICE_RANGE_PER_PAGE = 1000
+# Observed: the range endpoint caps a page at 100 points and ignores a larger
+# per_page. A wide window therefore comes back silently truncated, so we ask in
+# narrow windows around each target instead of one sweep.
+OILPRICE_RANGE_PER_PAGE = 100
+OILPRICE_RANGE_PAGE_CAP = 100
 BRENT_CODE = "BRENT_CRUDE_USD"
 HTTP_TIMEOUT_SECONDS = 20
 
@@ -83,6 +87,9 @@ OUTCOME_MATCH_WINDOW_MINUTES = 20
 # horizon at once.
 OUTCOME_USE_PRICE_API = True
 OUTCOME_API_MAX_RANGE_DAYS = 8
+# Windows are merged where they overlap, so a steady hour needs one or two
+# calls. The cap bounds a catch up after a long outage; the rest waits an hour.
+OUTCOME_API_CALLS_PER_RUN = 6
 
 # -------------------------------------------------------------- weekend ----
 MONDAY_COMPLETION_HOUR_UTC = 12

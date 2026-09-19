@@ -122,12 +122,39 @@ def _merge(
     return sorted(merged.items(), key=lambda item: item[0])
 
 
+def target_windows(
+    unresolved: Sequence[dict], now_utc: datetime, window_minutes: int = None
+) -> List[Tuple[datetime, datetime]]:
+    """Narrow windows around each outstanding target, overlaps merged.
+
+    The price API caps a page at 100 points, so a single wide sweep comes back
+    truncated and the oldest targets never resolve. Asking around each target
+    keeps every response small enough to be complete.
+    """
+    if window_minutes is None:
+        window_minutes = config.OUTCOME_MATCH_WINDOW_MINUTES
+    span = timedelta(minutes=window_minutes)
+    floor = now_utc - timedelta(days=config.OUTCOME_API_MAX_RANGE_DAYS)
+
+    windows: List[Tuple[datetime, datetime]] = []
+    for target in sorted({item["target"] for item in unresolved}):
+        start = max(target - span, floor)
+        end = min(target + span, now_utc)
+        if end <= start:
+            continue
+        if windows and start <= windows[-1][1]:
+            windows[-1] = (windows[-1][0], max(windows[-1][1], end))
+        else:
+            windows.append((start, end))
+    return windows
+
+
 def backfill(client, now_utc: datetime, fetch_range=None) -> int:
     """Fill forward price columns. Returns the number of rows touched.
 
     Our own logged prices are used first, because they cost nothing. Anything
     they cannot reach, because a scheduled run was dropped, is looked up from
-    the price API in a single range call covering every outstanding horizon.
+    the price API in narrow windows around the outstanding targets.
     """
     from .sheets import SIGNALS
 
@@ -143,17 +170,23 @@ def backfill(client, now_utc: datetime, fetch_range=None) -> int:
         if fetch_range is None:
             from .price import fetch_brent_range as fetch_range
 
-        earliest = min(item["target"] for item in unresolved)
-        window = timedelta(minutes=config.OUTCOME_MATCH_WINDOW_MINUTES)
-        floor = now_utc - timedelta(days=config.OUTCOME_API_MAX_RANGE_DAYS)
-        start = max(earliest - window, floor)
+        fetched: List[Tuple[datetime, float]] = []
+        windows = target_windows(unresolved, now_utc)
+        # Oldest first: those are the ones about to fall out of the range the
+        # API will still serve.
+        for start, end in windows[: config.OUTCOME_API_CALLS_PER_RUN]:
+            fetched.extend(fetch_range(start, end))
 
-        if start <= now_utc:
-            fetched = fetch_range(start, now_utc)
-            if fetched:
-                extra, _ = resolve(unresolved, _merge(series, fetched))
-                for row_number, cells in extra.items():
-                    updates.setdefault(row_number, {}).update(cells)
+        if len(windows) > config.OUTCOME_API_CALLS_PER_RUN:
+            print(
+                "outcome backfill: %d windows outstanding, doing %d this run"
+                % (len(windows), config.OUTCOME_API_CALLS_PER_RUN)
+            )
+
+        if fetched:
+            extra, _ = resolve(unresolved, _merge(series, fetched))
+            for row_number, cells in extra.items():
+                updates.setdefault(row_number, {}).update(cells)
 
     for row_number, cells in sorted(updates.items()):
         client.update_cells(SIGNALS, row_number, cells)
