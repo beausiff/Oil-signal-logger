@@ -241,7 +241,12 @@ def run(dry_run: bool = False) -> int:
                 trade_row["exit_price"] if trade_row and trade_row["exit_reason"] == "friday" else None,
             )
         elif not market_open:
-            weekend.on_weekend_run(client, now_chicago, weekend_rows_for(all_signals, key) + [signal_row])
+            weekend.on_weekend_run(
+                client,
+                now_chicago,
+                weekend_rows_for(all_signals, key) + [signal_row],
+                all_signal_rows=all_signals + [signal_row],
+            )
         else:
             weekend.on_open_run(client, now_chicago, now_utc, quote.price)
 

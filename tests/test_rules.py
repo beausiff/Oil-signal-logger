@@ -202,11 +202,37 @@ def test_weekend_news_never_opens_or_closes():
                 assert decision.position_after.side == "flat"
 
 
-def test_position_is_carried_if_the_market_shuts_on_one():
+def test_a_position_left_open_over_a_weekend_is_closed_late():
+    """The Friday close run gets dropped. Flat over the weekend still wins."""
     decision = rules.decide(score=-10, confidence="high", position=LONG,
                             now_chicago=chi(2026, 9, 19, 12), price=70.0)
+    assert decision.action == "close"
+    assert decision.exit_reason == "friday"
+    assert decision.position_after.side == "flat"
+
+
+@pytest.mark.parametrize("day,hour", [(18, 16), (18, 23), (19, 3), (20, 12)])
+def test_the_whole_weekend_shutdown_closes_a_stray_position(day, hour):
+    decision = rules.decide(score=0, confidence="high", position=LONG,
+                            now_chicago=chi(2026, 9, day, hour), price=80.0)
+    assert decision.action == "close"
+    assert decision.exit_reason == "friday"
+
+
+def test_a_position_survives_the_ordinary_nightly_break():
+    """The 16:00 to 17:00 break midweek is not a weekend. Keep the position."""
+    decision = rules.decide(score=0, confidence="high", position=LONG,
+                            now_chicago=chi(2026, 9, 16, 16, 30), price=80.0)
     assert decision.action == "flat"
     assert decision.position_after.side == "long"
+    assert decision.notes == "market_closed_position_carried"
+
+
+def test_a_flat_book_over_the_weekend_stays_quiet():
+    decision = rules.decide(score=10, confidence="high", position=FLAT,
+                            now_chicago=chi(2026, 9, 19, 12), price=80.0)
+    assert decision.action == "flat"
+    assert decision.notes == "market_closed"
 
 
 # --------------------------------------------------------------------- pnl --

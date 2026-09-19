@@ -74,7 +74,7 @@ def test_strong_score_opens_a_paper_long(wired, monkeypatch):
     assert row["position_after"] == "long"
     assert row["market_open"] is True
     assert row["brent_price"] == 80.0
-    assert row["rules_version"] == "v1"
+    assert row["rules_version"] == main.config.RULES_VERSION
     assert "tokens_in=1000" in row["notes"]
 
     assert wired.get_state()["position"] == "long"

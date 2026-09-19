@@ -53,6 +53,18 @@ def is_friday_close_run(now_chicago: datetime) -> bool:
     )
 
 
+def is_weekend_shutdown(now_chicago: datetime) -> bool:
+    """Inside the Friday close to Sunday reopen shutdown."""
+    day = now_chicago.weekday()
+    if day == SATURDAY:
+        return True
+    if day == FRIDAY:
+        return now_chicago.hour >= config.FRIDAY_CLOSE_HOUR
+    if day == SUNDAY:
+        return now_chicago.hour < config.SUNDAY_OPEN_HOUR
+    return False
+
+
 @dataclass(frozen=True)
 class Position:
     side: str  # "long" | "short" | "flat"
@@ -127,6 +139,17 @@ def decide(
     market_open = is_market_open(now_chicago)
 
     if not market_open:
+        if position.is_open and is_weekend_shutdown(now_chicago):
+            # The Friday rule is "flat over the weekend". If the run that was
+            # meant to close it never fired, close at the first opportunity
+            # rather than carry the position through a weekend the test was
+            # explicitly designed to sit out.
+            return Decision(
+                action="close",
+                position_after=FLAT,
+                exit_reason="friday",
+                notes="friday_close_missed_closing_late",
+            )
         note = "market_closed"
         if position.is_open:
             note = "market_closed_position_carried"

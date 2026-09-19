@@ -9,6 +9,7 @@ weekend, opened at the Friday close and completed after Monday 12:00 UTC.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional, Sequence
 
 from . import config
@@ -197,7 +198,44 @@ def on_friday_close(client, now_chicago, price, score, closed_side, exit_price) 
         client.update_cells(WEEKEND_GAPS, int(existing["_row"]), row)
 
 
-def on_weekend_run(client, now_chicago, weekend_signal_rows) -> None:
+def friday_snapshot(all_signal_rows: Sequence[dict], weekend_start: str) -> Dict[str, object]:
+    """The last price and score logged before the Friday close.
+
+    Taken from the signals history rather than from whichever run happened to
+    land between 15:00 and 16:00 Chicago. That run is frequently dropped, and
+    without this anchor gap_pct and weekend_signal_pnl_pct cannot be computed
+    at all.
+    """
+    from .outcomes import parse_utc
+
+    best = None
+    for row in all_signal_rows:
+        when = parse_utc(row.get("run_chicago", ""))
+        if when is None:
+            continue
+        local = when.astimezone(ZoneInfo(config.MARKET_TZ))
+        if local.date().isoformat() != weekend_start:
+            continue
+        if local.hour >= config.FRIDAY_CLOSE_HOUR:
+            continue
+        if best is None or local > best[0]:
+            best = (local, row)
+
+    if best is None:
+        return {}
+
+    row = best[1]
+    snapshot: Dict[str, object] = {}
+    price = to_float(row.get("brent_price"))
+    score = to_float(row.get("score"))
+    if price is not None:
+        snapshot["friday_last_price"] = price
+    if score is not None:
+        snapshot["friday_last_score"] = score
+    return snapshot
+
+
+def on_weekend_run(client, now_chicago, weekend_signal_rows, all_signal_rows=None) -> None:
     """Refresh the weekend aggregates on each closed market run."""
     from .sheets import WEEKEND_GAPS
 
@@ -206,12 +244,19 @@ def on_weekend_run(client, now_chicago, weekend_signal_rows) -> None:
         return
     existing = client.find_row(WEEKEND_GAPS, "weekend_start_date", key)
     summary = summarise_weekend_signals(weekend_signal_rows)
+
     if existing is None:
         row = open_row(key, None, None)
         row.update(summary)
+        if all_signal_rows:
+            row.update(friday_snapshot(all_signal_rows, key))
         client.append(WEEKEND_GAPS, [row])
-    else:
-        client.update_cells(WEEKEND_GAPS, int(existing["_row"]), summary)
+        return
+
+    # Backfill the Friday anchor if the close run never fired.
+    if all_signal_rows and not str(existing.get("friday_last_price", "")).strip():
+        summary.update(friday_snapshot(all_signal_rows, key))
+    client.update_cells(WEEKEND_GAPS, int(existing["_row"]), summary)
 
 
 def on_open_run(client, now_chicago, now_utc, price) -> None:

@@ -196,3 +196,74 @@ def test_short_held_through_is_inverted():
 
     row = client.records(WEEKEND_GAPS)[0]
     assert row["held_through_pnl_pct"] == pytest.approx(2.0, abs=0.01)
+
+
+# ------------------------------- the Friday anchor without a Friday run --
+
+def friday_signal(hour, price, score):
+    """A signals row on Friday 2026-09-18 at the given Chicago hour."""
+    moment = chi(18, hour)
+    return {
+        "run_utc": moment.astimezone(timezone.utc).isoformat(),
+        "run_chicago": moment.isoformat(),
+        "market_open": "true",
+        "brent_price": price,
+        "score": score,
+        "key_headlines": "",
+    }
+
+
+def test_the_friday_anchor_comes_from_the_last_pre_close_row():
+    history = [
+        friday_signal(9, 100.0, 1),
+        friday_signal(14, 103.0, 4),   # last before the 16:00 close
+        friday_signal(17, 109.0, 9),   # after the close, must be ignored
+    ]
+    snap = weekend.friday_snapshot(history, "2026-09-18")
+    assert snap == {"friday_last_price": 103.0, "friday_last_score": 4.0}
+
+
+def test_the_anchor_is_backfilled_when_the_close_run_was_dropped():
+    """Exactly what happened on 2026-09-18: no run landed in 15:00-16:00."""
+    client = FakeSheets()
+    history = [friday_signal(9, 100.0, 1), friday_signal(14, 103.0, 4)]
+
+    # The row gets created by a weekend run, with no Friday snapshot.
+    weekend.on_weekend_run(client, chi(19, 9), [signal(19, 9, 2)])
+    assert client.records(WEEKEND_GAPS)[0]["friday_last_price"] == ""
+
+    # A later weekend run, now with history, fills the anchor in.
+    weekend.on_weekend_run(client, chi(19, 14), [signal(19, 14, 2)], all_signal_rows=history)
+
+    row = client.records(WEEKEND_GAPS)[0]
+    assert row["friday_last_price"] == 103.0
+    assert row["friday_last_score"] == 4.0
+
+
+def test_an_existing_anchor_is_never_overwritten():
+    client = FakeSheets()
+    weekend.on_friday_close(client, chi(18, 15), 105.0, 6, "long", 105.0)
+    weekend.on_weekend_run(
+        client, chi(19, 9), [signal(19, 9, 2)],
+        all_signal_rows=[friday_signal(14, 103.0, 4)],
+    )
+    assert client.records(WEEKEND_GAPS)[0]["friday_last_price"] == 105.0
+
+
+def test_no_friday_rows_leaves_the_anchor_blank():
+    assert weekend.friday_snapshot([], "2026-09-18") == {}
+    assert weekend.friday_snapshot([friday_signal(17, 109.0, 9)], "2026-09-18") == {}
+
+
+def test_the_anchor_completes_the_gap_maths():
+    """With the anchor present, the reopen can compute a gap."""
+    client = FakeSheets()
+    weekend.on_weekend_run(
+        client, chi(19, 9), [signal(19, 9, 8)],
+        all_signal_rows=[friday_signal(14, 100.0, 4)],
+    )
+    weekend.on_open_run(client, chi(20, 18), chi(20, 18).astimezone(timezone.utc), 103.0)
+
+    row = client.records(WEEKEND_GAPS)[0]
+    assert row["gap_pct"] == pytest.approx(3.0, abs=0.01)
+    assert row["gap_direction_matched_weekend_score"] is True

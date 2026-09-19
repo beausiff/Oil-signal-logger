@@ -4,7 +4,10 @@ Nothing in this file may change during the 4 week test. If a value must
 change, bump RULES_VERSION so the logged rows stay comparable.
 """
 
-RULES_VERSION = "v1"
+# v1.1: the Friday close and the weekend snapshot no longer depend on a run
+# landing inside one specific hour, because GitHub's scheduler drops runs. The
+# thresholds are untouched. No trade had been taken under v1.
+RULES_VERSION = "v1.1"
 
 # ---------------------------------------------------------------- model ----
 ANTHROPIC_MODEL = "claude-sonnet-5"
