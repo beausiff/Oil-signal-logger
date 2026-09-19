@@ -113,9 +113,19 @@ of the target time. Gaps cost a little data, never correctness.
 
 Because the schedule is unreliable, the forward price columns do **not** depend
 on it. Each run fills them from the prices it logged itself where it can, and
-looks up anything still missing from the price API in a single range call
-covering every outstanding horizon at once. A dropped run therefore costs one
-scored hour, not the outcome data for the hours around it.
+looks up anything still missing from the price API in narrow windows around
+each outstanding target. A dropped run therefore costs one scored hour, not the
+outcome data for the hours around it.
+
+The windows are narrow on purpose: the range endpoint caps a page at 100 points
+and ignores a larger `per_page`, so one wide sweep comes back truncated without
+saying so. The log flags any response that arrives at the cap.
+
+The weekend row is anchored the same way. `friday_last_price` and
+`friday_last_score` come from the last signals row before the Friday close, not
+from whichever run happened to land in the final hour, because that run is
+often dropped. Without the anchor, `gap_pct` and `weekend_signal_pnl_pct`
+cannot be computed at all.
 
 To work on it locally instead:
 
@@ -139,8 +149,9 @@ These do not change during the test. If one must change, bump `RULES_VERSION` in
 | Enter short | score <= -6 and confidence medium or high, flat |
 | Exit on reversal | long closes at score <= -3, short closes at score >= +3 |
 | Trailing stop | 3% from the best price since entry |
-| Friday | no new entries after 10:00 Chicago, any open position closed on the last run before 16:00 |
+| Friday | no new entries after 10:00 Chicago, any open position closed before the 16:00 close, or at the first run after it if that one was dropped |
 | Size | one position at a time, 1 unit |
+| Rules version | `v1.1`, stamped on every row. Thresholds unchanged from v1 |
 | Spread | $0.05 per barrel deducted per round trip |
 
 **The trailing stop is checked hourly, not tick by tick.** A real fill would be
