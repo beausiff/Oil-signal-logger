@@ -259,24 +259,70 @@ def on_weekend_run(client, now_chicago, weekend_signal_rows, all_signal_rows=Non
     client.update_cells(WEEKEND_GAPS, int(existing["_row"]), summary)
 
 
-def on_open_run(client, now_chicago, now_utc, price) -> None:
+def reopen_utc(weekend_start: str) -> datetime:
+    """Sunday 17:00 Chicago, as UTC, for the weekend starting that Friday."""
+    friday = date.fromisoformat(weekend_start)
+    sunday = friday + timedelta(days=2)
+    local = datetime.combine(
+        sunday, datetime.min.time(), tzinfo=ZoneInfo(config.MARKET_TZ)
+    ).replace(hour=config.SUNDAY_OPEN_HOUR)
+    return local.astimezone(timezone.utc)
+
+
+def monday_noon_utc(weekend_start: str) -> datetime:
+    friday = date.fromisoformat(weekend_start)
+    monday = friday + timedelta(days=3)
+    return datetime.combine(monday, datetime.min.time(), tzinfo=timezone.utc).replace(
+        hour=config.MONDAY_COMPLETION_HOUR_UTC
+    )
+
+
+def price_at(fetch_range, target_utc: datetime, fallback=None):
+    """The Brent price at a specific moment, not whenever a run happened to fire.
+
+    Runs are dropped often enough that "the first run after X" can be hours
+    after X, which would put the wrong number in a column named after a
+    timestamp. Falls back to the caller's price only if the API has nothing.
+    """
+    from .outcomes import nearest_price
+
+    if fetch_range is None:
+        return fallback
+
+    span = timedelta(minutes=config.OUTCOME_MATCH_WINDOW_MINUTES)
+    points = fetch_range(target_utc - span, target_utc + span)
+    found = nearest_price(points, target_utc) if points else None
+    if found is None:
+        print("no price near %s, falling back to this run's price" % target_utc.isoformat())
+        return fallback
+    return found
+
+
+def on_open_run(client, now_chicago, now_utc, price, fetch_range=None) -> None:
     """Fill the reopen price, then the Monday price, as each becomes available."""
     from .sheets import WEEKEND_GAPS
 
     key = weekend_key(now_chicago)
-    if key is None or price is None:
+    if key is None:
         return
     existing = client.find_row(WEEKEND_GAPS, "weekend_start_date", key)
     if existing is None:
         return
 
+    if fetch_range is None and config.OUTCOME_USE_PRICE_API:
+        from .price import fetch_brent_range as fetch_range
+
     if not str(existing.get("sunday_reopen_price", "")).strip():
-        updates = reopen_updates(existing, price)
-        if updates:
-            client.update_cells(WEEKEND_GAPS, int(existing["_row"]), updates)
-            existing.update({k: v for k, v in updates.items()})
+        target = reopen_utc(key)
+        if now_utc >= target:
+            pinned = price_at(fetch_range, target, fallback=price)
+            updates = reopen_updates(existing, pinned)
+            if updates:
+                client.update_cells(WEEKEND_GAPS, int(existing["_row"]), updates)
+                existing.update(updates)
 
     if is_past_monday_noon_utc(now_utc) and not str(existing.get("monday_12utc_price", "")).strip():
-        updates = monday_updates(existing, price)
+        pinned = price_at(fetch_range, monday_noon_utc(key), fallback=price)
+        updates = monday_updates(existing, pinned)
         if updates:
             client.update_cells(WEEKEND_GAPS, int(existing["_row"]), updates)

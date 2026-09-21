@@ -267,3 +267,80 @@ def test_the_anchor_completes_the_gap_maths():
     row = client.records(WEEKEND_GAPS)[0]
     assert row["gap_pct"] == pytest.approx(3.0, abs=0.01)
     assert row["gap_direction_matched_weekend_score"] is True
+
+
+# ---------------------- prices pinned to timestamps, not to run times --
+
+def test_reopen_and_monday_targets():
+    assert weekend.reopen_utc("2026-09-18") == datetime(2026, 9, 20, 22, 0, tzinfo=timezone.utc)
+    assert weekend.monday_noon_utc("2026-09-18") == datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+
+
+class RangeStub:
+    def __init__(self, points=None):
+        self.points = points or []
+        self.calls = []
+
+    def __call__(self, start, end):
+        self.calls.append((start, end))
+        return [p for p in self.points if start <= p[0] <= end]
+
+
+def test_price_at_prefers_the_api_over_the_run_price():
+    target = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+    stub = RangeStub([(target, 100.0)])
+    assert weekend.price_at(stub, target, fallback=999.0) == 100.0
+
+
+def test_price_at_falls_back_when_the_api_has_nothing():
+    target = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+    assert weekend.price_at(RangeStub([]), target, fallback=999.0) == 999.0
+
+
+def test_monday_price_is_the_noon_price_not_the_late_run_price():
+    """The run fires at 15:40. The column must still hold the 12:00 price."""
+    client = FakeSheets()
+    weekend.on_weekend_run(
+        client, chi(19, 9), [signal(19, 9, 2)],
+        all_signal_rows=[friday_signal(14, 100.0, 4)],
+    )
+    noon = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+    reopen = datetime(2026, 9, 20, 22, 0, tzinfo=timezone.utc)
+    stub = RangeStub([(reopen, 101.0), (noon, 104.0)])
+
+    weekend.on_open_run(client, reopen.astimezone(rules.CHICAGO), reopen, 555.0, fetch_range=stub)
+
+    late = datetime(2026, 9, 21, 15, 40, tzinfo=timezone.utc)
+    weekend.on_open_run(client, late.astimezone(rules.CHICAGO), late, 999.0, fetch_range=stub)
+
+    row = client.records(WEEKEND_GAPS)[0]
+    assert row["sunday_reopen_price"] == 101.0, "not the 555 the reopen run happened to see"
+    assert row["monday_12utc_price"] == 104.0, "not the 999 the late run happened to see"
+    assert row["gap_pct"] == pytest.approx(1.0, abs=0.01)
+    assert row["weekend_signal_pnl_pct"] == 0.0  # implied action was flat
+
+
+def test_the_reopen_price_is_not_written_before_the_reopen():
+    client = FakeSheets()
+    weekend.on_weekend_run(client, chi(19, 9), [signal(19, 9, 2)])
+    early = datetime(2026, 9, 20, 18, 0, tzinfo=timezone.utc)  # before 22:00 reopen
+
+    weekend.on_open_run(client, early.astimezone(rules.CHICAGO), early, 100.0,
+                        fetch_range=RangeStub([]))
+
+    assert client.records(WEEKEND_GAPS)[0]["sunday_reopen_price"] == ""
+
+
+def test_a_missing_api_price_still_records_the_run_price():
+    """Better a slightly late price than a permanently blank column."""
+    client = FakeSheets()
+    weekend.on_weekend_run(
+        client, chi(19, 9), [signal(19, 9, 2)],
+        all_signal_rows=[friday_signal(14, 100.0, 4)],
+    )
+    reopen = datetime(2026, 9, 20, 22, 0, tzinfo=timezone.utc)
+
+    weekend.on_open_run(client, reopen.astimezone(rules.CHICAGO), reopen, 102.0,
+                        fetch_range=RangeStub([]))
+
+    assert client.records(WEEKEND_GAPS)[0]["sunday_reopen_price"] == 102.0

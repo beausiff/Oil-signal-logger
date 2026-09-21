@@ -127,6 +127,12 @@ from whichever run happened to land in the final hour, because that run is
 often dropped. Without the anchor, `gap_pct` and `weekend_signal_pnl_pct`
 cannot be computed at all.
 
+`sunday_reopen_price` and `monday_12utc_price` are pinned to their timestamps
+for the same reason. A column named after a moment should hold the price at
+that moment, not the price the first surviving run happened to see, which can
+be hours later. Both come from the price API, falling back to the run's own
+price only if the API has nothing.
+
 To work on it locally instead:
 
 ```bash
