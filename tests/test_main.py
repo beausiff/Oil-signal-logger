@@ -187,3 +187,55 @@ def test_an_unavailable_model_logs_an_error_row_and_does_not_crash(wired, monkey
     assert row["brent_price"] == 80.0
     assert len(wired.records(HEADLINES)) == 1
     assert wired.records(TRADES) == []
+
+
+# ------------------- the Monday break is not part of the weekend --------
+
+def chicago_row(day, hour, score, market_open=False):
+    moment = datetime(2026, 9, day, hour, 5, tzinfo=rules.CHICAGO)
+    return {
+        "run_utc": moment.astimezone(timezone.utc).isoformat(),
+        "run_chicago": moment.isoformat(),
+        "market_open": "true" if market_open else "false",
+        "score": score,
+        "key_headlines": "",
+    }
+
+
+def test_weekend_rows_exclude_the_monday_maintenance_break():
+    """Monday 16:00-17:00 Chicago is closed, but it is not the weekend.
+
+    weekend_key still resolves to the Friday that opened the window, so
+    without an explicit shutdown check a Monday evening run lands in the
+    weekend scores and can move weekend_implied_action.
+    """
+    rows = [
+        chicago_row(18, 17, 1),   # Friday after the 16:00 close: weekend
+        chicago_row(19, 10, 2),   # Saturday: weekend
+        chicago_row(20, 12, 3),   # Sunday before the 17:00 reopen: weekend
+        chicago_row(21, 16, -9),  # Monday break: NOT the weekend
+    ]
+    kept = main.weekend_rows_for(rows, "2026-09-18")
+
+    assert [r["score"] for r in kept] == [1, 2, 3]
+    assert -9 not in [r["score"] for r in kept]
+
+
+def test_the_sunday_reopen_is_not_counted_as_weekend():
+    rows = [chicago_row(20, 18, 7, market_open=True)]  # after the 17:00 reopen
+    assert main.weekend_rows_for(rows, "2026-09-18") == []
+
+
+def test_a_monday_break_run_does_not_touch_the_weekend_row(wired, monkeypatch):
+    """The whole bug in one assertion: no weekend row should appear."""
+    _FrozenDatetime.now_value = datetime(2026, 9, 21, 21, 30, tzinfo=timezone.utc)  # 16:30 Chicago Monday
+    wire_news(monkeypatch, [fake_headline()])
+    wire_price(monkeypatch, 80.0)
+    wire_score(monkeypatch, 9)
+
+    main.run()
+
+    assert wired.records(sheets.WEEKEND_GAPS) == []
+    row = wired.records(SIGNALS)[0]
+    assert row["market_open"] is False
+    assert row["action"] == "flat"

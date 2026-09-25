@@ -84,7 +84,13 @@ def carry_forward(recent_signals: List[dict]) -> dict:
 
 
 def weekend_rows_for(all_signals: List[dict], key: str) -> List[dict]:
-    """Closed market signal rows belonging to one weekend window."""
+    """Signal rows inside one weekend shutdown.
+
+    Deliberately NOT "any row where the market was closed": Monday has a 16:00
+    to 17:00 Chicago maintenance break, and weekend_key still resolves to the
+    Friday that started the window, so a Monday evening run would be counted
+    into the weekend scores it has nothing to do with.
+    """
     out = []
     for row in all_signals:
         if _as_bool(row.get("market_open")):
@@ -92,7 +98,10 @@ def weekend_rows_for(all_signals: List[dict], key: str) -> List[dict]:
         when = outcomes.parse_utc(row.get("run_chicago", ""))
         if when is None:
             continue
-        if weekend.weekend_key(when.astimezone(rules.CHICAGO)) == key:
+        local = when.astimezone(rules.CHICAGO)
+        if not rules.is_weekend_shutdown(local):
+            continue
+        if weekend.weekend_key(local) == key:
             out.append(row)
     return out
 
@@ -240,7 +249,7 @@ def run(dry_run: bool = False) -> int:
                 position.side if trade_row and trade_row["exit_reason"] == "friday" else "none",
                 trade_row["exit_price"] if trade_row and trade_row["exit_reason"] == "friday" else None,
             )
-        elif not market_open:
+        elif rules.is_weekend_shutdown(now_chicago):
             weekend.on_weekend_run(
                 client,
                 now_chicago,
