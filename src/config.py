@@ -96,3 +96,7 @@ OUTCOME_API_CALLS_PER_RUN = 6
 
 # -------------------------------------------------------------- weekend ----
 MONDAY_COMPLETION_HOUR_UTC = 12
+# How close a run must be to a weekend target before its own price may stand in
+# for the API's. Beyond this the cell stays blank and waits: a price recorded
+# hours from the moment its column is named after is worse than no price.
+WEEKEND_FALLBACK_WINDOW_MINUTES = 120

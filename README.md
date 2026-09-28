@@ -133,6 +133,13 @@ that moment, not the price the first surviving run happened to see, which can
 be hours later. Both come from the price API, falling back to the run's own
 price only if the API has nothing.
 
+Completion is not tied to the day either. Every run sweeps for weekend rows
+whose reopen or Monday noon has passed and are still blank, whatever day it
+is. The earlier version required the completing run to land on the Monday
+itself, so a weekend whose Monday runs were all dropped would have stayed
+incomplete permanently rather than merely late. A run's own price stands in
+only when it is within two hours of the target; beyond that the cell waits.
+
 To work on it locally instead:
 
 ```bash

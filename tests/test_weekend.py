@@ -344,3 +344,99 @@ def test_a_missing_api_price_still_records_the_run_price():
                         fetch_range=RangeStub([]))
 
     assert client.records(WEEKEND_GAPS)[0]["sunday_reopen_price"] == 102.0
+
+
+# ------------- completing a weekend whose Monday runs were all dropped --
+
+def seeded_weekend(client=None):
+    client = client or FakeSheets()
+    weekend.on_weekend_run(
+        client, chi(19, 9), [signal(19, 9, 2)],
+        all_signal_rows=[friday_signal(14, 100.0, 4)],
+    )
+    return client
+
+
+def test_a_weekend_still_completes_days_after_its_monday():
+    """Every post noon Monday run was dropped. Thursday must still finish it.
+
+    The old test was `weekday() == MONDAY and hour >= 12`, so once Tuesday
+    arrived the column could never be filled again: lost, not merely late.
+    """
+    client = seeded_weekend()
+    reopen = datetime(2026, 9, 20, 22, 0, tzinfo=timezone.utc)
+    noon = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+    stub = RangeStub([(reopen, 101.0), (noon, 104.0)])
+
+    thursday = datetime(2026, 9, 24, 9, 0, tzinfo=timezone.utc)
+    touched = weekend.complete_pending(client, thursday, price=777.0, fetch_range=stub)
+
+    row = client.records(WEEKEND_GAPS)[0]
+    assert touched == 2
+    assert row["sunday_reopen_price"] == 101.0
+    assert row["monday_12utc_price"] == 104.0
+    assert row["weekend_signal_pnl_pct"] == 0.0
+
+
+def test_a_stale_run_price_is_never_used_as_the_monday_price():
+    """Blank beats a Thursday price sitting under a column named Monday noon."""
+    client = seeded_weekend()
+    thursday = datetime(2026, 9, 24, 9, 0, tzinfo=timezone.utc)
+
+    weekend.complete_pending(client, thursday, price=777.0, fetch_range=RangeStub([]))
+
+    row = client.records(WEEKEND_GAPS)[0]
+    assert row["monday_12utc_price"] == ""
+    assert row["sunday_reopen_price"] == ""
+
+
+def test_a_near_run_price_may_still_stand_in():
+    client = seeded_weekend()
+    just_after = datetime(2026, 9, 21, 12, 30, tzinfo=timezone.utc)
+
+    weekend.complete_pending(client, just_after, price=104.0, fetch_range=RangeStub([]))
+
+    assert client.records(WEEKEND_GAPS)[0]["monday_12utc_price"] == 104.0
+
+
+def test_nothing_is_touched_before_the_targets_arrive():
+    client = seeded_weekend()
+    saturday = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+
+    assert weekend.complete_pending(client, saturday, price=100.0,
+                                    fetch_range=RangeStub([])) == 0
+
+
+def test_an_already_complete_weekend_is_left_alone():
+    client = seeded_weekend()
+    noon = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+    reopen = datetime(2026, 9, 20, 22, 0, tzinfo=timezone.utc)
+    stub = RangeStub([(reopen, 101.0), (noon, 104.0)])
+
+    weekend.complete_pending(client, noon, fetch_range=stub)
+    assert weekend.complete_pending(client, noon, fetch_range=stub) == 0
+
+
+def test_several_outstanding_weekends_are_all_completed():
+    client = FakeSheets()
+    for start, fri in (("2026-09-18", 100.0), ("2026-09-25", 110.0)):
+        client.append(WEEKEND_GAPS, [weekend.open_row(start, fri, 2)])
+
+    points = [
+        (weekend.reopen_utc("2026-09-18"), 101.0),
+        (weekend.monday_noon_utc("2026-09-18"), 102.0),
+        (weekend.reopen_utc("2026-09-25"), 111.0),
+        (weekend.monday_noon_utc("2026-09-25"), 112.0),
+    ]
+    later = datetime(2026, 10, 1, 9, 0, tzinfo=timezone.utc)
+
+    weekend.complete_pending(client, later, fetch_range=RangeStub(points))
+
+    rows = client.records(WEEKEND_GAPS)
+    assert [r["monday_12utc_price"] for r in rows] == [102.0, 112.0]
+
+
+def test_is_past_monday_noon_stays_true_after_monday():
+    tuesday = datetime(2026, 9, 22, 9, 0, tzinfo=timezone.utc)
+    assert weekend.is_past_monday_noon_utc(tuesday, "2026-09-18") is True
+    assert weekend.is_past_monday_noon_utc(tuesday) is False  # the old day based test

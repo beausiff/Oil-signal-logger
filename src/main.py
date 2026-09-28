@@ -256,8 +256,12 @@ def run(dry_run: bool = False) -> int:
                 weekend_rows_for(all_signals, key) + [signal_row],
                 all_signal_rows=all_signals + [signal_row],
             )
-        else:
-            weekend.on_open_run(client, now_chicago, now_utc, quote.price)
+
+    # Every run, whatever day it is: a weekend row left unfinished because its
+    # Monday runs were dropped must still get finished.
+    completed = weekend.complete_pending(client, now_utc, price=quote.price)
+    if completed:
+        print("weekend rows completed: %d" % completed)
 
     # 9. Outcomes backfill.
     touched = outcomes.backfill(client, now_utc)

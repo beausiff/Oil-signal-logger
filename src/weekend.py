@@ -177,7 +177,15 @@ def monday_updates(row: dict, monday_price: Optional[float]) -> Dict[str, object
     return updates
 
 
-def is_past_monday_noon_utc(now_utc: datetime) -> bool:
+def is_past_monday_noon_utc(now_utc: datetime, weekend_start: str = None) -> bool:
+    """Has this weekend's Monday noon UTC passed?
+
+    With a weekend_start it compares against that weekend's actual Monday, so
+    it stays true on Tuesday and after. Without one it falls back to the old
+    "is it Monday afternoon" test, which is only safe for a live weekend.
+    """
+    if weekend_start:
+        return now_utc >= monday_noon_utc(weekend_start)
     return now_utc.weekday() == MONDAY and now_utc.hour >= config.MONDAY_COMPLETION_HOUR_UTC
 
 
@@ -298,31 +306,54 @@ def price_at(fetch_range, target_utc: datetime, fallback=None):
     return found
 
 
-def on_open_run(client, now_chicago, now_utc, price, fetch_range=None) -> None:
-    """Fill the reopen price, then the Monday price, as each becomes available."""
-    from .sheets import WEEKEND_GAPS
+def complete_pending(client, now_utc, price=None, fetch_range=None) -> int:
+    """Finish any weekend row whose reopen or Monday noon has passed.
 
-    key = weekend_key(now_chicago)
-    if key is None:
-        return
-    existing = client.find_row(WEEKEND_GAPS, "weekend_start_date", key)
-    if existing is None:
-        return
+    Deliberately not scoped to "today is Monday". Runs get dropped, and the
+    old test required the completing run to land on the Monday itself: if
+    every post noon Monday run was lost, weekday() moved to Tuesday and the
+    column stayed blank forever rather than merely late. This sweeps every
+    outstanding row on every run, whatever day it is.
+
+    Returns the number of rows touched.
+    """
+    from .sheets import WEEKEND_GAPS
 
     if fetch_range is None and config.OUTCOME_USE_PRICE_API:
         from .price import fetch_brent_range as fetch_range
 
-    if not str(existing.get("sunday_reopen_price", "")).strip():
-        target = reopen_utc(key)
-        if now_utc >= target:
-            pinned = price_at(fetch_range, target, fallback=price)
-            updates = reopen_updates(existing, pinned)
-            if updates:
-                client.update_cells(WEEKEND_GAPS, int(existing["_row"]), updates)
-                existing.update(updates)
+    fallback_window = timedelta(minutes=config.WEEKEND_FALLBACK_WINDOW_MINUTES)
+    touched = 0
 
-    if is_past_monday_noon_utc(now_utc) and not str(existing.get("monday_12utc_price", "")).strip():
-        pinned = price_at(fetch_range, monday_noon_utc(key), fallback=price)
-        updates = monday_updates(existing, pinned)
-        if updates:
-            client.update_cells(WEEKEND_GAPS, int(existing["_row"]), updates)
+    for row in client.records(WEEKEND_GAPS):
+        key = str(row.get("weekend_start_date", "")).strip()
+        if not key:
+            continue
+
+        for column, target, apply in (
+            ("sunday_reopen_price", reopen_utc(key), reopen_updates),
+            ("monday_12utc_price", monday_noon_utc(key), monday_updates),
+        ):
+            if str(row.get(column, "")).strip() or now_utc < target:
+                continue
+
+            # The run's own price only stands in while it is genuinely near
+            # the target. A Thursday price under a column named Monday noon
+            # would be worse than a blank.
+            near = abs(now_utc - target) <= fallback_window
+            pinned = price_at(fetch_range, target, fallback=price if near else None)
+            updates = apply(row, pinned)
+            if updates:
+                client.update_cells(WEEKEND_GAPS, int(row["_row"]), updates)
+                row.update(updates)
+                touched += 1
+
+    return touched
+
+
+def on_open_run(client, now_chicago, now_utc, price, fetch_range=None) -> None:
+    """Kept as the named entry point for a run while the market is open.
+
+    complete_pending does the work and is no longer tied to the current day.
+    """
+    complete_pending(client, now_utc, price=price, fetch_range=fetch_range)
