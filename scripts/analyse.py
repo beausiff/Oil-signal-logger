@@ -176,23 +176,40 @@ def main() -> int:
             )
         )
 
-    print("\n--- 7. NEAR MISSES AND ACTIONS ---")
-    # Three rows scored +6, the entry threshold, yet nothing was ever bought.
-    # This section exists to say exactly why, row by row, rather than leaving
-    # the reader to infer it from a zero in the trades tab.
-    interesting = [
-        r for r in rows
-        if (to_float(r.get("score")) or 0) >= config.ENTRY_LONG_SCORE - 1
-        or (to_float(r.get("score")) or 0) <= config.ENTRY_SHORT_SCORE + 1
-        or str(r.get("action", "")).strip() not in ("hold", "")
-    ]
-    print("  rows at |score| >= %d, or with a non hold action: %d"
-          % (abs(config.ENTRY_SHORT_SCORE) - 1, len(interesting)))
-    for r in interesting:
-        print("  %s  score %+3s  %-6s  open=%-5s  action=%-5s  pos=%-5s  %s"
+    print("\n--- 7. WHAT THE RULES ACTUALLY DID ---")
+    # "flat" and "hold" are no-ops. Only these four mean something happened.
+    acted = [r for r in rows if str(r.get("action", "")).strip() in ("buy", "sell", "close", "error")]
+    print("  rows where the rules acted: %d" % len(acted))
+    for r in acted:
+        print("  %s  score %+3s  %-6s  open=%-5s  action=%-5s  pos=%-5s  brent %s"
               % (str(r.get("run_utc"))[:16], r.get("score"), r.get("confidence"),
                  r.get("market_open"), r.get("action"), r.get("position_after"),
-                 str(r.get("notes"))[:60]))
+                 r.get("brent_price")))
+
+    near = [r for r in rows if abs(to_float(r.get("score")) or 0) >= abs(config.ENTRY_SHORT_SCORE) - 1]
+    print("\n  rows at |score| >= %d (threshold is %d):"
+          % (abs(config.ENTRY_SHORT_SCORE) - 1, config.ENTRY_LONG_SCORE))
+    for r in near:
+        print("  %s  score %+3s  %-6s  open=%-5s  action=%-5s"
+              % (str(r.get("run_utc"))[:16], r.get("score"), r.get("confidence"),
+                 r.get("market_open"), r.get("action")))
+
+    print("\n  current state tab:")
+    state = client.get_state()
+    for k in ("position", "entry_price", "entry_utc", "entry_score", "best_price",
+              "trade_id", "last_run_utc"):
+        print("    %-12s %s" % (k, state.get(k)))
+    last_price = None
+    for r in reversed(rows):
+        last_price = to_float(r.get("brent_price"))
+        if last_price is not None:
+            break
+    entry = to_float(state.get("entry_price"))
+    if entry and last_price:
+        side = str(state.get("position", "")).strip()
+        move = (last_price - entry) / entry * 100.0
+        print("    unrealised   %s from %.2f to %.2f = %+.3f%% (%s)"
+              % (side, entry, last_price, move if side == "long" else -move, side))
 
     print("\n--- 8. TRADES ---")
     from src.sheets import TRADES
