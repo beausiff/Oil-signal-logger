@@ -176,7 +176,25 @@ def main() -> int:
             )
         )
 
-    print("\n--- 7. TRADES ---")
+    print("\n--- 7. NEAR MISSES AND ACTIONS ---")
+    # Three rows scored +6, the entry threshold, yet nothing was ever bought.
+    # This section exists to say exactly why, row by row, rather than leaving
+    # the reader to infer it from a zero in the trades tab.
+    interesting = [
+        r for r in rows
+        if (to_float(r.get("score")) or 0) >= config.ENTRY_LONG_SCORE - 1
+        or (to_float(r.get("score")) or 0) <= config.ENTRY_SHORT_SCORE + 1
+        or str(r.get("action", "")).strip() not in ("hold", "")
+    ]
+    print("  rows at |score| >= %d, or with a non hold action: %d"
+          % (abs(config.ENTRY_SHORT_SCORE) - 1, len(interesting)))
+    for r in interesting:
+        print("  %s  score %+3s  %-6s  open=%-5s  action=%-5s  pos=%-5s  %s"
+              % (str(r.get("run_utc"))[:16], r.get("score"), r.get("confidence"),
+                 r.get("market_open"), r.get("action"), r.get("position_after"),
+                 str(r.get("notes"))[:60]))
+
+    print("\n--- 8. TRADES ---")
     from src.sheets import TRADES
     trades = client.records(TRADES)
     print("  closed paper trades: %d" % len(trades))
