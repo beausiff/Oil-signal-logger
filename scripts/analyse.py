@@ -218,6 +218,46 @@ def main() -> int:
     for t in trades:
         print("  %s" % t)
 
+    print("\n--- 9. CAN THE GAP BE BACKFILLED? ---")
+    # The scorer died on 17 Oct. Everything else kept running. Whether the gap
+    # can be rescored depends entirely on whether the raw headlines survived,
+    # because the model needs the same input it would have had live.
+    from src.sheets import HEADLINES
+    heads = client.records(HEADLINES)
+    print("  headline rows total: %d" % len(heads))
+
+    def day(row, field):
+        return str(row.get(field, ""))[:10]
+
+    gap_days = {}
+    for r in rows:
+        if str(r.get("action", "")).strip() != "error":
+            continue
+        gap_days.setdefault(day(r, "run_utc"), {"rows": 0, "runs": set()})
+        gap_days[day(r, "run_utc")]["rows"] += 1
+        gap_days[day(r, "run_utc")]["runs"].add(str(r.get("run_utc")))
+
+    head_by_run = {}
+    for h in heads:
+        head_by_run.setdefault(str(h.get("run_utc")), 0)
+        head_by_run[str(h.get("run_utc"))] += 1
+
+    print("  %-12s %-10s %-10s %s" % ("day", "err rows", "headlines", "runs with 0 headlines"))
+    total_err = total_head = 0
+    for d in sorted(gap_days):
+        runs = gap_days[d]["runs"]
+        hc = sum(head_by_run.get(u, 0) for u in runs)
+        empty = sum(1 for u in runs if head_by_run.get(u, 0) == 0)
+        total_err += gap_days[d]["rows"]
+        total_head += hc
+        print("  %-12s %-10d %-10d %d" % (d, gap_days[d]["rows"], hc, empty))
+    print("  %-12s %-10d %-10d" % ("TOTAL", total_err, total_head))
+
+    have_price = sum(1 for r in rows
+                     if str(r.get("action", "")).strip() == "error"
+                     and to_float(r.get("brent_price")) is not None)
+    print("  error rows that still logged a Brent price: %d of %d" % (have_price, total_err))
+
     print("\n" + "=" * 78)
     return 0
 
