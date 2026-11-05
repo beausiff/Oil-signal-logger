@@ -258,6 +258,22 @@ def main() -> int:
                      and to_float(r.get("brent_price")) is not None)
     print("  error rows that still logged a Brent price: %d of %d" % (have_price, total_err))
 
+    print("\n--- 10. LIVE ROWS vs BACKFILLED ROWS ---")
+    # Backfilled rows were scored after the fact. The model could not see what
+    # Brent did next, so they are not contaminated, but they are not
+    # prospective either. Report both so the difference is visible rather than
+    # buried in the pooled number.
+    live = [r for r in rows if not str(r.get("score_source", "")).startswith("backfilled")]
+    back = [r for r in rows if str(r.get("score_source", "")).startswith("backfilled")]
+    print("  live rows: %d    backfilled rows: %d" % (len(live), len(back)))
+    if not back:
+        print("  nothing backfilled yet, pooled figures above are all live")
+    else:
+        for horizon in ("24h", "72h"):
+            correlate(live, horizon, "live only, %s" % horizon)
+            correlate(back, horizon, "backfilled only, %s" % horizon)
+            correlate(rows, horizon, "pooled, %s" % horizon)
+
     print("\n" + "=" * 78)
     return 0
 

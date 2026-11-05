@@ -1,0 +1,34 @@
+name: backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print what it would write, write nothing"
+        type: boolean
+        default: true
+      limit:
+        description: "Only do the first N rows (0 = all)"
+        type: string
+        default: "0"
+
+concurrency:
+  group: oil-signal-logger
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m scripts.backfill_scores ${{ inputs.dry_run && '--dry-run' || '' }} --limit ${{ inputs.limit }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}

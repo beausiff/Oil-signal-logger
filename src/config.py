@@ -94,6 +94,12 @@ OUTCOME_API_MAX_RANGE_DAYS = 8
 # calls. The cap bounds a catch up after a long outage; the rest waits an hour.
 OUTCOME_API_CALLS_PER_RUN = 6
 
+# --------------------------------------------------------------- alerts ----
+# The job used to exit 0 while logging nothing, so a dead API key looked like a
+# healthy run for 19 days. After this many consecutive scoring failures the run
+# exits non zero, which is what makes GitHub send its own failure email.
+ALERT_AFTER_CONSECUTIVE_ERRORS = 3
+
 # -------------------------------------------------------------- weekend ----
 MONDAY_COMPLETION_HOUR_UTC = 12
 # How close a run must be to a weekend target before its own price may stand in

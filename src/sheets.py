@@ -28,6 +28,9 @@ SCHEMAS: Dict[str, List[str]] = {
         "new_information", "key_headlines", "reasoning", "action", "position_after",
         "notes", "price_1h", "price_4h", "price_24h", "price_72h",
         "move_1h_pct", "move_4h_pct", "move_24h_pct", "move_72h_pct",
+        # Appended, never inserted: every column above keeps its position, so
+        # rows written before this existed still read correctly.
+        "score_source",
     ],
     TRADES: [
         "trade_id", "side", "entry_utc", "entry_price", "entry_score", "exit_utc",

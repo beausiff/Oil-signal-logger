@@ -228,6 +228,7 @@ def run(dry_run: bool = False) -> int:
         "notes": "; ".join(n for n in notes if n),
         "price_1h": "", "price_4h": "", "price_24h": "", "price_72h": "",
         "move_1h_pct": "", "move_4h_pct": "", "move_24h_pct": "", "move_72h_pct": "",
+        "score_source": "live" if scored is not None else "",
     }
     signal_row.update(score_fields)
     client.append(SIGNALS, [signal_row])
@@ -268,6 +269,19 @@ def run(dry_run: bool = False) -> int:
     print("outcome rows backfilled: %d" % touched)
 
     print("action=%s position=%s" % (decision.action, new_position.side))
+
+    # Last, so nothing above is lost: a run that scored nothing is still a run
+    # whose headlines, price and backfill are worth keeping.
+    recent = (all_signals + [signal_row])[-config.ALERT_AFTER_CONSECUTIVE_ERRORS:]
+    if len(recent) == config.ALERT_AFTER_CONSECUTIVE_ERRORS and all(
+        str(r.get("action", "")).strip() == "error" for r in recent
+    ):
+        print(
+            "FAILING THE JOB: %d consecutive runs scored nothing. Everything else "
+            "was written. Check the ANTHROPIC secret."
+            % config.ALERT_AFTER_CONSECUTIVE_ERRORS
+        )
+        return 1
     return 0
 
 
