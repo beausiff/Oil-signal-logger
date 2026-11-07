@@ -14,6 +14,10 @@ on:
         description: "Print everything, write nothing"
         type: boolean
         default: false
+      force:
+        description: "Ignore the minimum gap since the last run"
+        type: boolean
+        default: true
 
 concurrency:
   group: oil-signal-logger
@@ -47,9 +51,12 @@ jobs:
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
         run: |
-          # A hand started run is always meant, so it skips the gap guard.
+          # A hand started run is normally meant, so it defaults to skipping
+          # the gap guard. Setting force=false is how the guard itself gets
+          # tested without waiting for a scheduled tick. On a scheduled run
+          # the input is unset, so the guard always applies.
           FORCE=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ inputs.force }}" = "true" ]; then
             FORCE="--force"
           fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then
