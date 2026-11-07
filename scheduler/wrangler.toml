@@ -1,0 +1,8 @@
+name = "oil-signal-scheduler"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Five past every hour. Cloudflare fires these reliably, which is the whole
+# reason this exists.
+[triggers]
+crons = ["5 * * * *"]

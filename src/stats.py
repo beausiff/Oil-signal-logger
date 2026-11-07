@@ -7,6 +7,7 @@ without a Google credential.
 from __future__ import annotations
 
 import math
+import random
 from typing import List, Optional, Sequence, Tuple
 
 
@@ -79,3 +80,37 @@ def describe(returns: Sequence[float]) -> dict:
     if not returns:
         return {"n": 0, "mean": None, "hit": None}
     return {"n": len(returns), "mean": mean(returns), "hit": hit_rate(returns)}
+
+
+def permutation_test(xs: Sequence[float], ys: Sequence[float], rounds: int = 2000,
+                     seed: int = 20261107) -> Optional[dict]:
+    """Where does the real correlation sit among correlations of shuffled data?
+
+    A confidence interval that crosses zero says "we cannot rule out no
+    relationship". This says something stronger and easier to argue with: out
+    of `rounds` shuffles that destroy any real link while keeping both
+    distributions exactly as they are, what share produced a correlation at
+    least as extreme as the one we measured? That share is a p value, and it
+    needs no assumption about the data being normal, which hourly oil returns
+    are not.
+    """
+    if len(xs) != len(ys) or len(xs) < 8:
+        return None
+    observed = pearson(xs, ys)
+    if observed is None:
+        return None
+
+    rng = random.Random(seed)
+    shuffled = list(ys)
+    at_least_as_extreme = 0
+    for _ in range(rounds):
+        rng.shuffle(shuffled)
+        r = pearson(xs, shuffled)
+        if r is not None and abs(r) >= abs(observed):
+            at_least_as_extreme += 1
+
+    # Add one to each side: a p value of exactly zero would claim more
+    # certainty than a finite number of shuffles can support.
+    p = (at_least_as_extreme + 1) / (rounds + 1)
+    return {"observed": observed, "rounds": rounds, "p": p,
+            "beats": 1.0 - at_least_as_extreme / rounds}

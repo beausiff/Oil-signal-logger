@@ -274,6 +274,24 @@ def main() -> int:
             correlate(back, horizon, "backfilled only, %s" % horizon)
             correlate(rows, horizon, "pooled, %s" % horizon)
 
+    print("\n--- 11. PERMUTATION TEST ---")
+    # "The interval crosses zero" is a weak sentence. This gives the result
+    # something concrete to beat: shuffle the scores against the moves
+    # thousands of times and see how often pure chance does as well.
+    print("  2000 shuffles per horizon. p = share of shuffles that matched or beat the real correlation.")
+    for label, subset in (("all rows", rows), ("market open", open_rows)):
+        for horizon in HORIZONS:
+            data = pairs(subset, horizon)
+            if len(data) < 8:
+                print("  %-22s %-5s n=%-4d too few" % (label, horizon, len(data)))
+                continue
+            result = stats.permutation_test([d[0] for d in data], [d[1] for d in data])
+            if result is None:
+                continue
+            verdict = "SIGNAL" if result["p"] < 0.05 else "indistinguishable from chance"
+            print("  %-22s %-5s n=%-4d r=%+.3f  p=%.3f  %s"
+                  % (label, horizon, len(data), result["observed"], result["p"], verdict))
+
     print("\n" + "=" * 78)
     return 0
 
