@@ -94,6 +94,15 @@ OUTCOME_API_MAX_RANGE_DAYS = 8
 # calls. The cap bounds a catch up after a long outage; the rest waits an hour.
 OUTCOME_API_CALLS_PER_RUN = 6
 
+# ------------------------------------------------------------ scheduling ----
+# GitHub fires maybe one scheduled run in four, and a missed hour is a row
+# that never exists. So the workflow asks every 10 minutes and this guard
+# throws away all but the first attempt in each hour. Six chances an hour at
+# roughly a 1 in 4 hit rate is about an 82% chance of landing the hour, against
+# 25% before, and it costs nothing: a skipped attempt reads two cells and
+# stops, before any news fetch, price call or model call.
+MIN_MINUTES_BETWEEN_RUNS = 55
+
 # --------------------------------------------------------------- alerts ----
 # The job used to exit 0 while logging nothing, so a dead API key looked like a
 # healthy run for 19 days. After this many consecutive scoring failures the run

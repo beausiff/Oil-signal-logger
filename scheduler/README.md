@@ -1,23 +1,46 @@
 # Scheduler
 
-GitHub's cron dropped roughly three scheduled runs in four. Over the first four
-weeks that turned an expected 672 rows into 143, and every statistical problem
-this experiment had traced back to sample size. This replaces it.
+**You probably do not need what is in this folder.** The cheap fix below is
+already live and gets most of the way for nothing. The Cloudflare worker is
+the belt and braces version and it needs a terminal, so it is not a phone job.
 
-Cloudflare Workers cron triggers are free and fire on time. The worker does one
-thing: calls GitHub's `workflow_dispatch` endpoint once an hour.
+## The cheap fix, already live
 
-## Deploy, about ten minutes
+GitHub drops most scheduled runs, and a missed hour is a row that never
+exists. Asking once an hour loses the hour.
+
+So the workflow now fires every 10 minutes instead, and `src/main.py` keeps
+the first attempt in each hour and stops the rest. A skipped attempt reads two
+cells and exits, before any news fetch, price call or model call, so the extra
+attempts cost nothing.
+
+Six attempts an hour at roughly a 1 in 4 hit rate lands about 82% of hours,
+against 25% before. This repository is public, so the extra Actions minutes
+are free too.
+
+The guard lives in `config.MIN_MINUTES_BETWEEN_RUNS`, set to 55 rather than 60
+on purpose: at 60 a run landing at :03 would block the attempt at :57 and the
+hour would be lost anyway.
+
+A hand started run (`workflow_dispatch`) passes `--force` and ignores the
+guard, so manual testing always works.
+
+## The belt and braces version
+
+Worth doing only if 82% is not enough. Cloudflare Workers cron triggers fire
+reliably. `worker.js` calls GitHub's `workflow_dispatch` endpoint once an hour
+and logs a warning when the previous run is more than three hours old.
+
+Needs a laptop.
 
 **1. A GitHub token that can only do this one thing**
 
-github.com → Settings → Developer settings → Personal access tokens → Fine
-grained tokens → Generate new token.
+Settings → Developer settings → Personal access tokens → Fine grained.
 
 - Repository access: only `beausiff/Oil-signal-logger`
 - Permissions → Repository → **Actions: Read and write**. Nothing else.
-- Expiry: set a reminder, because an expired token fails exactly the way the
-  Anthropic key did.
+- Set a calendar reminder for the expiry. An expired token fails exactly the
+  way the Anthropic key did.
 
 **2. Deploy**
 
@@ -25,33 +48,31 @@ grained tokens → Generate new token.
 npm install -g wrangler
 cd scheduler
 wrangler login
-wrangler secret put GITHUB_TOKEN     # paste the token at the prompt
+wrangler secret put GITHUB_TOKEN     # paste at the prompt, never in a file
 wrangler deploy
 ```
 
-The token goes in as a Cloudflare secret. It is never in this repository.
-
-**3. Check it works without waiting an hour**
+**3. Test it without waiting an hour**
 
 `wrangler deploy` prints a `*.workers.dev` URL. Open it. It dispatches a run
-immediately and tells you how long ago the previous one was.
+and reports how long ago the previous one was.
 
-**4. Turn off GitHub's schedule**
+**4. Only then, thin out the GitHub schedule**
 
-Once a few hours of Cloudflare triggered runs have landed, comment out the
-`schedule:` block in `.github/workflows/hourly.yml`. Leave
-`workflow_dispatch:` in place, because that is what the worker calls.
+Once Cloudflare triggered runs are landing, reduce the `cron:` line in
+`.github/workflows/hourly.yml` back to hourly, or drop it. Keep
+`workflow_dispatch:`, because that is what the worker calls.
 
-Do not do this before step 3 passes, or nothing is running the job.
+Do not touch step 4 before step 3 passes, or nothing is running the job.
 
-## What it costs
+## Free either way
 
-Nothing. The free plan covers 100,000 requests a day and this uses 24.
+Cloudflare's free plan covers 100,000 requests a day. This uses 24.
 
 ## If runs stop
 
-The worker logs a warning when the previous run is more than three hours old
-(`wrangler tail` to watch). The hourly job also fails loudly after three
-consecutive runs that score nothing, which sends GitHub's own failure email.
-Between them, silence is no longer indistinguishable from working, which is
-what let a dead API key run unnoticed for nineteen days.
+The worker logs a warning when the last run is over three hours old
+(`wrangler tail`). Separately, the hourly job exits non zero after three
+consecutive runs that score nothing, which triggers GitHub's own failure
+email. Between them, silence is no longer indistinguishable from working,
+which is what let a dead API key go unnoticed for nineteen days.

@@ -106,7 +106,15 @@ def weekend_rows_for(all_signals: List[dict], key: str) -> List[dict]:
     return out
 
 
-def run(dry_run: bool = False) -> int:
+def minutes_since_last_run(state: dict, now_utc: datetime) -> Optional[float]:
+    """None when there is no previous run to compare against."""
+    last = outcomes.parse_utc((state.get("last_run_utc") or "").strip())
+    if last is None:
+        return None
+    return (now_utc - last).total_seconds() / 60.0
+
+
+def run(dry_run: bool = False, force: bool = False) -> int:
     now_utc = datetime.now(timezone.utc)
     now_chicago = rules.to_chicago(now_utc)
     market_open = rules.is_market_open(now_chicago)
@@ -115,6 +123,18 @@ def run(dry_run: bool = False) -> int:
     print("run %s (chicago %s) market_open=%s" % (now_utc.isoformat(), now_chicago.isoformat(), market_open))
 
     client = sheets.open_client(dry_run=dry_run)
+
+    # 0. Is this attempt the one that counts this hour?
+    #
+    # The workflow fires every 10 minutes because GitHub drops most scheduled
+    # runs and there is no way to know in advance which ones. All but the
+    # first attempt of each hour stop here, before any news, price or model
+    # call, so the extra attempts cost nothing but two cells read.
+    gap = minutes_since_last_run(client.get_state(), now_utc)
+    if not force and gap is not None and gap < config.MIN_MINUTES_BETWEEN_RUNS:
+        print("skipping: last run was %.0f minutes ago, minimum gap is %d"
+              % (gap, config.MIN_MINUTES_BETWEEN_RUNS))
+        return 0
 
     # 1-2. News, cleaned and deduped against what we have already logged.
     known_hashes = client.recent_hashes(config.DEDUPE_LOOKBACK_ROWS)
@@ -288,8 +308,10 @@ def run(dry_run: bool = False) -> int:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Oil news signal logger, one hourly run.")
     parser.add_argument("--dry-run", action="store_true", help="print everything, write nothing")
+    parser.add_argument("--force", action="store_true",
+                        help="run even if the last run was recent")
     args = parser.parse_args(argv)
-    return run(dry_run=args.dry_run)
+    return run(dry_run=args.dry_run, force=args.force)
 
 
 if __name__ == "__main__":

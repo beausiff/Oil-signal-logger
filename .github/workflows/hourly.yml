@@ -2,11 +2,12 @@ name: hourly
 
 on:
   schedule:
-    # Deliberately NOT near the top of the hour. GitHub warns that the
-    # schedule event is delayed during peak load, and the start of every hour
-    # is the peak: the first two runs at :05 were dropped entirely. :23 sits
-    # in a quiet minute.
-    - cron: "23 * * * *"
+    # Every 10 minutes, not hourly, and deliberately off the top of the hour.
+    # GitHub drops most scheduled runs under load, so asking once an hour
+    # loses the hour. Six attempts an hour, at odd minutes, nearly always
+    # lands one. src/main.py keeps the first and stops the rest before they
+    # spend anything, so this is six cheap attempts, not six runs.
+    - cron: "3,13,23,33,43,53 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -46,8 +47,13 @@ jobs:
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
         run: |
+          # A hand started run is always meant, so it skips the gap guard.
+          FORCE=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FORCE="--force"
+          fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            python -m src.main --dry-run
+            python -m src.main --dry-run $FORCE
           else
-            python -m src.main
+            python -m src.main $FORCE
           fi
