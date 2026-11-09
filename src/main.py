@@ -292,7 +292,9 @@ def run(dry_run: bool = False, force: bool = False) -> int:
 
     # Last, so nothing above is lost: a run that scored nothing is still a run
     # whose headlines, price and backfill are worth keeping.
-    recent = (all_signals + [signal_row])[-config.ALERT_AFTER_CONSECUTIVE_ERRORS:]
+    written = all_signals + [signal_row]
+
+    recent = written[-config.ALERT_AFTER_CONSECUTIVE_ERRORS:]
     if len(recent) == config.ALERT_AFTER_CONSECUTIVE_ERRORS and all(
         str(r.get("action", "")).strip() == "error" for r in recent
     ):
@@ -302,6 +304,18 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             % config.ALERT_AFTER_CONSECUTIVE_ERRORS
         )
         return 1
+
+    priced = written[-config.ALERT_AFTER_CONSECUTIVE_BLANK_PRICES:]
+    if len(priced) == config.ALERT_AFTER_CONSECUTIVE_BLANK_PRICES and all(
+        str(r.get("brent_price", "")).strip() == "" for r in priced
+    ):
+        print(
+            "FAILING THE JOB: %d consecutive runs logged no Brent price. "
+            "Check the OILTRACKER secret and the OilPriceAPI account."
+            % config.ALERT_AFTER_CONSECUTIVE_BLANK_PRICES
+        )
+        return 1
+
     return 0
 
 

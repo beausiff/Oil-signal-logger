@@ -1,0 +1,33 @@
+name: reliability
+
+# Scores the same hours twice to see whether the model agrees with itself.
+# Costs about 30p a run, so it is manual only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: "How many hours to rescore"
+        type: string
+        default: "30"
+
+concurrency:
+  group: oil-signal-logger
+  cancel-in-progress: false
+
+jobs:
+  reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m scripts.reliability --sample ${{ inputs.sample }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}

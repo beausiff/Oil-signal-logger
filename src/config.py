@@ -108,6 +108,10 @@ MIN_MINUTES_BETWEEN_RUNS = 55
 # healthy run for 19 days. After this many consecutive scoring failures the run
 # exits non zero, which is what makes GitHub send its own failure email.
 ALERT_AFTER_CONSECUTIVE_ERRORS = 3
+# The price feed fails soft to a blank cell, exactly as scoring used to, so it
+# can die as quietly as the Anthropic key did. A few blanks are normal (the
+# vendor rate limits); a long run of them is a dead key or a dead account.
+ALERT_AFTER_CONSECUTIVE_BLANK_PRICES = 6
 
 # -------------------------------------------------------------- weekend ----
 MONDAY_COMPLETION_HOUR_UTC = 12
