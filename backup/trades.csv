@@ -1,0 +1,2 @@
+trade_id,side,entry_utc,entry_price,entry_score,exit_utc,exit_price,exit_reason,best_price,pnl_usd_bbl,pnl_pct,hours_held
+T-20261014T1841-L,long,2026-10-14T18:41:27.437539+00:00,106.18,6,2026-10-16T21:17:50.133534+00:00,109.93,friday,109.32,3.7,3.4846,50.61
