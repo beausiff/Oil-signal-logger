@@ -3,21 +3,85 @@
   {
    "entry_price": 103.08,
    "entry_utc": "2026-09-17T14:19",
-   "exit_price": 104.43,
-   "exit_utc": "2026-10-09T20:58",
-   "pnl_pct": 1.2612,
-   "pnl_usd": 1.3
+   "exit_price": 103.37,
+   "exit_utc": "2026-09-18T22:38",
+   "pnl_pct": 0.2328,
+   "pnl_usd": 0.24
   },
   {
-   "entry_price": 105.54,
-   "entry_utc": "2026-10-11T23:45",
+   "entry_price": 101.62,
+   "entry_utc": "2026-09-21T05:04",
+   "exit_price": 104.38,
+   "exit_utc": "2026-09-25T22:26",
+   "pnl_pct": 2.6668,
+   "pnl_usd": 2.71
+  },
+  {
+   "entry_price": 106.6,
+   "entry_utc": "2026-09-28T07:01",
+   "exit_price": 102.72,
+   "exit_utc": "2026-10-02T23:01",
+   "pnl_pct": -3.6867,
+   "pnl_usd": -3.93
+  },
+  {
+   "entry_price": 101.75,
+   "entry_utc": "2026-10-05T07:09",
+   "exit_price": 104.43,
+   "exit_utc": "2026-10-09T20:58",
+   "pnl_pct": 2.5848,
+   "pnl_usd": 2.63
+  },
+  {
+   "entry_price": 103.91,
+   "entry_utc": "2026-10-12T06:06",
+   "exit_price": 109.93,
+   "exit_utc": "2026-10-16T21:17",
+   "pnl_pct": 5.7454,
+   "pnl_usd": 5.97
+  },
+  {
+   "entry_price": 107.47,
+   "entry_utc": "2026-10-19T06:19",
+   "exit_price": 117.38,
+   "exit_utc": "2026-10-23T22:17",
+   "pnl_pct": 9.1747,
+   "pnl_usd": 9.86
+  },
+  {
+   "entry_price": 114.47,
+   "entry_utc": "2026-10-26T06:21",
    "exit_price": 117.55,
    "exit_utc": "2026-10-30T20:51",
-   "pnl_pct": 11.3322,
-   "pnl_usd": 11.96
+   "pnl_pct": 2.647,
+   "pnl_usd": 3.03
+  },
+  {
+   "entry_price": 110.05,
+   "entry_utc": "2026-11-02T07:44",
+   "exit_price": 97.97,
+   "exit_utc": "2026-11-07T00:57",
+   "pnl_pct": -11.0223,
+   "pnl_usd": -12.13
+  },
+  {
+   "entry_price": 97.53,
+   "entry_utc": "2026-11-09T10:22",
+   "exit_price": 96.29,
+   "exit_utc": "2026-11-13T23:38",
+   "pnl_pct": -1.3227,
+   "pnl_usd": -1.29
+  },
+  {
+   "entry_price": 96.61,
+   "entry_utc": "2026-11-16T06:51",
+   "exit_price": 92.59,
+   "exit_utc": "2026-11-21T00:22",
+   "pnl_pct": -4.2128,
+   "pnl_usd": -4.07
   }
  ],
- "generated_utc": "2026-11-22T08:20:52.971595+00:00",
+ "generated_utc": "2026-11-22T09:39:19.104023+00:00",
  "open": null,
  "prices": [
   {
@@ -1569,6 +1633,11 @@
    "p": 92.59,
    "s": 3.0,
    "t": "2026-11-22T08:20"
+  },
+  {
+   "p": 92.59,
+   "s": 2.0,
+   "t": "2026-11-22T09:39"
   }
  ],
  "rules": {
