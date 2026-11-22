@@ -73,14 +73,25 @@ def carry_forward(recent_signals: List[dict]) -> dict:
                 "new_information": False,
                 "reasoning": "carried from %s" % row.get("run_utc", "previous run"),
             }
+    # Nothing to carry: leave the score blank rather than invent a 0. The
+    # rules treat a blank score as "no signal" (no entry, no reversal exit).
     return {
-        "score": 0,
-        "confidence": "low",
-        "direction": "neutral",
+        "score": "",
+        "confidence": "",
+        "direction": "",
         "key_headlines": "",
         "new_information": False,
         "reasoning": "no prior score to carry",
     }
+
+
+def last_logged_price(rows: List[dict]) -> Optional[float]:
+    """The most recent Brent price in the signals rows, or None."""
+    for row in reversed(rows):
+        value = outcomes.to_float(row.get("brent_price"))
+        if value is not None:
+            return value
+    return None
 
 
 def weekend_rows_for(all_signals: List[dict], key: str) -> List[dict]:
@@ -106,6 +117,23 @@ def weekend_rows_for(all_signals: List[dict], key: str) -> List[dict]:
     return out
 
 
+def scoring_failed(row: dict) -> bool:
+    """Did this row's scorer call fail, and is it still unscored?
+
+    A backfilled row keeps action "error" but has a score, so it is not a
+    current failure; a row with no new headlines never called the scorer.
+    """
+    return (
+        str(row.get("score", "")).strip() == ""
+        and (outcomes.to_float(row.get("new_headline_count")) or 0) > 0
+    )
+
+
+def had_headlines(row: dict) -> bool:
+    """Rows with no new headlines never called the scorer, so say nothing about it."""
+    return outcomes.to_float(row.get("new_headline_count")) != 0
+
+
 def minutes_since_last_run(state: dict, now_utc: datetime) -> Optional[float]:
     """None when there is no previous run to compare against."""
     last = outcomes.parse_utc((state.get("last_run_utc") or "").strip())
@@ -126,10 +154,10 @@ def run(dry_run: bool = False, force: bool = False) -> int:
 
     # 0. Is this attempt the one that counts this hour?
     #
-    # The workflow fires every 10 minutes because GitHub drops most scheduled
-    # runs and there is no way to know in advance which ones. All but the
-    # first attempt of each hour stop here, before any news, price or model
-    # call, so the extra attempts cost nothing but two cells read.
+    # GitHub delivers only a few scheduled runs a day, so a gap this short
+    # means two runs landed close together (a manual or external dispatch next
+    # to a scheduled one). The second stops here, before any news, price or
+    # model call, so a double fire costs one read of the state tab, not a row.
     gap = minutes_since_last_run(client.get_state(), now_utc)
     if not force and gap is not None and gap < config.MIN_MINUTES_BETWEEN_RUNS:
         print("skipping: last run was %.0f minutes ago, minimum gap is %d"
@@ -184,7 +212,17 @@ def run(dry_run: bool = False, force: bool = False) -> int:
 
     # 6. Rules.
     if scored is None and fresh:
-        decision = rules.Decision(action="error", position_after=position, notes="scoring_error")
+        # The Friday close, the late weekend close and the trailing stop need a
+        # price, not a score, so they still apply. A blank score blocks entries
+        # and the reversal exit. Anything but a close is logged as an error.
+        decision = rules.decide(
+            score=None, confidence=None, position=position,
+            now_chicago=now_chicago, price=quote.price,
+        )
+        if decision.action != "close":
+            decision = rules.Decision(
+                action="error", position_after=decision.position_after, notes="scoring_error",
+            )
     else:
         decision = rules.decide(
             score=score_fields["score"] if score_fields["score"] != "" else None,
@@ -209,7 +247,12 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             trade_id=make_trade_id(new_position.side, now_utc),
         )
     elif decision.action == "close" and position.is_open:
-        exit_price = quote.price if quote.ok else position.best_price
+        exit_price = quote.price if quote.ok else last_logged_price(all_signals)
+        if exit_price is None:
+            exit_price = position.entry_price
+        # What decide ratcheted to on this run, which it does not hand back on a close.
+        peak = (rules.update_best_price(position, quote.price).best_price
+                if market_open and quote.ok else position.best_price)
         pnl_usd, pnl_pct = rules.pnl(position.side, position.entry_price or 0.0, exit_price or 0.0)
         entry_at = outcomes.parse_utc(position.entry_utc or "")
         hours_held = round((now_utc - entry_at).total_seconds() / 3600.0, 2) if entry_at else ""
@@ -222,7 +265,7 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             "exit_utc": now_utc.isoformat(),
             "exit_price": exit_price,
             "exit_reason": decision.exit_reason or "manual",
-            "best_price": position.best_price,
+            "best_price": peak,
             "pnl_usd_bbl": pnl_usd,
             "pnl_pct": pnl_pct,
             "hours_held": hours_held,
@@ -248,7 +291,9 @@ def run(dry_run: bool = False, force: bool = False) -> int:
         "notes": "; ".join(n for n in notes if n),
         "price_1h": "", "price_4h": "", "price_24h": "", "price_72h": "",
         "move_1h_pct": "", "move_4h_pct": "", "move_24h_pct": "", "move_72h_pct": "",
-        "score_source": "live" if scored is not None else "",
+        # "carried" marks a row that reused an earlier score, so the analyses
+        # can tell it from one the model scored this hour.
+        "score_source": "live" if scored is not None else ("" if fresh else "carried"),
     }
     signal_row.update(score_fields)
     client.append(SIGNALS, [signal_row])
@@ -276,6 +321,10 @@ def run(dry_run: bool = False, force: bool = False) -> int:
                 now_chicago,
                 weekend_rows_for(all_signals, key) + [signal_row],
                 all_signal_rows=all_signals + [signal_row],
+                # A close the Friday run never made, taken at the first
+                # weekend run instead, still belongs on the weekend row.
+                closed_side=position.side if trade_row and trade_row["exit_reason"] == "friday" else "none",
+                exit_price=trade_row["exit_price"] if trade_row and trade_row["exit_reason"] == "friday" else None,
             )
 
     # Every run, whatever day it is: a weekend row left unfinished because its
@@ -294,9 +343,12 @@ def run(dry_run: bool = False, force: bool = False) -> int:
     # whose headlines, price and backfill are worth keeping.
     written = all_signals + [signal_row]
 
-    recent = written[-config.ALERT_AFTER_CONSECUTIVE_ERRORS:]
+    # Rows with no new headlines never called the scorer, so a quiet run in
+    # the middle of an outage must not reset the streak.
+    scoring_rows = [r for r in written if had_headlines(r)]
+    recent = scoring_rows[-config.ALERT_AFTER_CONSECUTIVE_ERRORS:]
     if len(recent) == config.ALERT_AFTER_CONSECUTIVE_ERRORS and all(
-        str(r.get("action", "")).strip() == "error" for r in recent
+        scoring_failed(r) for r in recent
     ):
         print(
             "FAILING THE JOB: %d consecutive runs scored nothing. Everything else "

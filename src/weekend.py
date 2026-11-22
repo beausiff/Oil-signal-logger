@@ -1,6 +1,6 @@
 """Weekend gap analysis.
 
-Runs continue hourly on Saturday and Sunday: news is fetched, scored and logged
+Runs continue on Saturday and Sunday: news is fetched, scored and logged
 with market_open = false and action = flat. No position is ever opened or
 closed while the market is shut. This module builds one `weekend_gaps` row per
 weekend, opened at the Friday close and completed after Monday 12:00 UTC.
@@ -243,8 +243,13 @@ def friday_snapshot(all_signal_rows: Sequence[dict], weekend_start: str) -> Dict
     return snapshot
 
 
-def on_weekend_run(client, now_chicago, weekend_signal_rows, all_signal_rows=None) -> None:
-    """Refresh the weekend aggregates on each closed market run."""
+def on_weekend_run(client, now_chicago, weekend_signal_rows, all_signal_rows=None,
+                   closed_side="none", exit_price=None) -> None:
+    """Refresh the weekend aggregates on each closed market run.
+
+    closed_side and exit_price are set when this run made the Friday close that
+    the Friday run missed, so the weekend row still records it.
+    """
     from .sheets import WEEKEND_GAPS
 
     key = weekend_key(now_chicago)
@@ -252,6 +257,9 @@ def on_weekend_run(client, now_chicago, weekend_signal_rows, all_signal_rows=Non
         return
     existing = client.find_row(WEEKEND_GAPS, "weekend_start_date", key)
     summary = summarise_weekend_signals(weekend_signal_rows)
+    if closed_side in ("long", "short"):
+        summary["friday_position_closed"] = closed_side
+        summary["friday_exit_price"] = "" if exit_price is None else exit_price
 
     if existing is None:
         row = open_row(key, None, None)
@@ -323,6 +331,7 @@ def complete_pending(client, now_utc, price=None, fetch_range=None) -> int:
         from .price import fetch_brent_range as fetch_range
 
     fallback_window = timedelta(minutes=config.WEEKEND_FALLBACK_WINDOW_MINUTES)
+    give_up = timedelta(days=config.WEEKEND_GIVE_UP_DAYS)
     touched = 0
 
     for row in client.records(WEEKEND_GAPS):
@@ -335,6 +344,10 @@ def complete_pending(client, now_utc, price=None, fetch_range=None) -> int:
             ("monday_12utc_price", monday_noon_utc(key), monday_updates),
         ):
             if str(row.get(column, "")).strip() or now_utc < target:
+                continue
+            # Long past, and nothing has turned up: stop asking the price API
+            # on every run. The cell stays blank, no price is invented.
+            if now_utc - target > give_up:
                 continue
 
             # The run's own price only stands in while it is genuinely near

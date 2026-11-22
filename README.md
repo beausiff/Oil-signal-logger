@@ -1,6 +1,6 @@
 # Oil News Signal Logger
 
-A four week **log only** experiment. Every hour it reads oil related news, scores
+A four week **log only** experiment. On each run it reads oil related news, scores
 it with Claude, records a buy / sell / hold / flat decision against locked rules,
 and logs the Brent price. Everything lands in a Google Sheet.
 
@@ -10,7 +10,10 @@ had any predictive value against what the price actually did.
 
 ---
 
-## What it does each hour
+## What it does each run
+
+The job is scheduled hourly, but GitHub only delivers roughly 3 to 4 scheduled
+runs a day for this repository, so expect a few rows a day, not 24.
 
 1. Fetches oil news published in the last 90 minutes (Google News RSS, free).
 2. Cleans and dedupes it against the last 1,000 logged headlines. Caps at 40.
@@ -101,21 +104,22 @@ In the **Actions** tab, pick **hourly** and **Run workflow** with *dry run* tick
 Read the log: it prints every row it would write and writes nothing. Then run it
 again with dry run unticked and check the `signals` tab.
 
-Once a correct row appears, the hourly schedule is already live and needs nothing
+Once a correct row appears, the schedule is already live and needs nothing
 further from you.
 
-**About the schedule.** The cron runs at 23 minutes past, not on the hour.
-GitHub delays or drops scheduled runs during peak load, and the top of the hour
-is the peak. Even off peak the schedule is best effort, so expect the occasional
-missing hour. Nothing breaks: each `signals` row stands on its own, and the
-outcome columns simply stay blank when no logged price falls within 20 minutes
-of the target time. Gaps cost a little data, never correctness.
+**About the schedule.** The cron is hourly, at 23 minutes past rather than on
+the hour. GitHub delays or drops scheduled runs, and in practice delivers only
+about 3 to 4 a day for this repository. Firing every 10 minutes was tried and
+made no measurable difference. Each `signals` row stands on its own, and the
+outcome columns are filled from the price API when no logged price falls within
+20 minutes of the target time. Gaps cost data, not correctness. An external
+scheduler is the only real fix, see `scheduler/README.md`.
 
 Because the schedule is unreliable, the forward price columns do **not** depend
 on it. Each run fills them from the prices it logged itself where it can, and
 looks up anything still missing from the price API in narrow windows around
-each outstanding target. A dropped run therefore costs one scored hour, not the
-outcome data for the hours around it.
+each outstanding target. A dropped run therefore costs one scored run, not the
+outcome data around it.
 
 The windows are narrow on purpose: the range endpoint caps a page at 100 points
 and ignores a larger `per_page`, so one wide sweep comes back truncated without
@@ -167,7 +171,7 @@ These do not change during the test. If one must change, bump `RULES_VERSION` in
 | Rules version | `v1.1`, stamped on every row. Thresholds unchanged from v1 |
 | Spread | $0.05 per barrel deducted per round trip |
 
-**The trailing stop is checked hourly, not tick by tick.** A real fill would be
+**The trailing stop is checked once per run, not tick by tick.** A real fill would be
 worse, sometimes much worse on a fast move. Read every stop exit in the log as a
 best case.
 
@@ -183,7 +187,7 @@ staying flat costs us anything.
 
 | Tab | What it holds |
 | --- | --- |
-| `signals` | one row per hour: price, score, action, and the forward price moves at 1h, 4h, 24h and 72h |
+| `signals` | one row per run (about 3 to 4 a day): price, score, action, and the forward price moves at 1h, 4h, 24h and 72h |
 | `trades` | one row per closed paper trade, with P&L in dollars per barrel and percent |
 | `headlines` | every headline used, hashed for dedupe. The audit trail |
 | `state` | a single row holding the current paper position |
@@ -204,13 +208,13 @@ rate, the signal is noise and the experiment has done its job for the price of a
 few dollars of tokens.
 
 `trades` gives the headline number, but it is a small sample. `signals` is the
-real dataset because it scores every hour, traded or not.
+real dataset because it scores every run, traded or not.
 
 ---
 
 ## Cost
 
-One Claude call an hour, roughly 1,500 tokens in and 100 out. Well under a dollar
+One Claude call per run, roughly 1,500 tokens in and 100 out. Well under a dollar
 a day. Actual tokens and estimated cost are written into the `notes` column of
 every row.
 

@@ -75,7 +75,7 @@ def main() -> int:
             {"entry_utc": str(t["entry_utc"])[:16], "entry_price": t["entry_price"],
              "exit_utc": str(t["exit_utc"])[:16], "exit_price": t["exit_price"],
              "pnl_pct": t["pnl_pct"], "pnl_usd": t["pnl_usd"]}
-            for t in calendar_only(rows)
+            for t in calendar_only(rows, use_stop=False)
         ],
         "open": {"side": open_position.side, "entry": open_position.entry_price}
         if open_position.is_open else None,

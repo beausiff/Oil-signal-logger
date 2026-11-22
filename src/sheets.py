@@ -73,8 +73,27 @@ def column_letter(index_zero_based: int) -> str:
     return letters
 
 
+def neutralise(value):
+    """Stop third party text being read as a formula.
+
+    Values are written with USER_ENTERED, so a headline or a model's reasoning
+    that starts with = + - or @ would be evaluated by Sheets. A leading
+    apostrophe makes it plain text. Numbers, bools and numeric strings stay as
+    they are.
+    """
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
+        try:
+            float(value)
+        except ValueError:
+            return "'" + value
+    return value
+
+
 def _row_from_dict(tab: str, values: dict) -> list:
-    return ["" if values.get(col) is None else values.get(col, "") for col in SCHEMAS[tab]]
+    return [
+        "" if values.get(col) is None else neutralise(values.get(col, ""))
+        for col in SCHEMAS[tab]
+    ]
 
 
 class SheetsClient:
@@ -187,7 +206,7 @@ class SheetsClient:
             if column not in header:
                 continue
             cell = "%s%d" % (column_letter(header.index(column)), row_number)
-            requests.append({"range": cell, "values": [[value]]})
+            requests.append({"range": cell, "values": [[neutralise(value)]]})
         if requests:
             self.worksheet(tab).batch_update(requests, value_input_option="USER_ENTERED")
 

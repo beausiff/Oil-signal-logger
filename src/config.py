@@ -64,7 +64,9 @@ FRIDAY_CLOSE_HOUR = 16
 DAILY_BREAK_START_HOUR = 16
 DAILY_BREAK_END_HOUR = 17
 
-# Runs fire at :05, so the last run before the 16:00 Friday close is 15:05.
+# The Friday close is meant to be made by a run inside the 15:00 hour. GitHub
+# delivers only a few runs a day, so that run is often missing; the first run
+# after the 16:00 close then closes the position late (see rules.decide).
 FRIDAY_NO_NEW_ENTRY_HOUR = 10
 FRIDAY_FORCED_CLOSE_HOUR = 15
 
@@ -91,16 +93,17 @@ OUTCOME_MATCH_WINDOW_MINUTES = 20
 OUTCOME_USE_PRICE_API = True
 OUTCOME_API_MAX_RANGE_DAYS = 8
 # Windows are merged where they overlap, so a steady hour needs one or two
-# calls. The cap bounds a catch up after a long outage; the rest waits an hour.
+# calls. The cap bounds a catch up after a long outage; the rest waits for the next run.
 OUTCOME_API_CALLS_PER_RUN = 6
 
 # ------------------------------------------------------------ scheduling ----
-# GitHub fires maybe one scheduled run in four, and a missed hour is a row
-# that never exists. So the workflow asks every 10 minutes and this guard
-# throws away all but the first attempt in each hour. Six chances an hour at
-# roughly a 1 in 4 hit rate is about an 82% chance of landing the hour, against
-# 25% before, and it costs nothing: a skipped attempt reads two cells and
-# stops, before any news fetch, price call or model call.
+# The job is scheduled hourly, but GitHub delivers only about 3 to 4 scheduled
+# runs a day for this repository. Asking every 10 minutes was tried and made no
+# measurable difference, so the cron is hourly again. This guard stays because
+# it is harmless and an external scheduler needs it: a run that lands less
+# than this many minutes after the previous one is skipped before any news,
+# price or model call. 55 rather than 60 so a run at :03 does not block the
+# one at :58.
 MIN_MINUTES_BETWEEN_RUNS = 55
 
 # --------------------------------------------------------------- alerts ----
@@ -119,3 +122,6 @@ MONDAY_COMPLETION_HOUR_UTC = 12
 # for the API's. Beyond this the cell stays blank and waits: a price recorded
 # hours from the moment its column is named after is worse than no price.
 WEEKEND_FALLBACK_WINDOW_MINUTES = 120
+# A weekend price still missing this long after its target is given up on,
+# so it stops costing a price API call on every run. It is left blank.
+WEEKEND_GIVE_UP_DAYS = 7

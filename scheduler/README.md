@@ -1,37 +1,31 @@
 # Scheduler
 
-**You probably do not need what is in this folder.** The cheap fix below is
-already live and gets most of the way for nothing. The Cloudflare worker is
-the belt and braces version and it needs a terminal, so it is not a phone job.
+GitHub only delivers about 3 to 4 scheduled runs a day for this repository,
+out of the 24 the hourly cron asks for. A missed run is a row that never
+exists. The Cloudflare worker in this folder is the only real fix. It needs a
+terminal, so it is not a phone job.
 
-## The cheap fix, already live
+## What was tried
 
-GitHub drops most scheduled runs, and a missed hour is a row that never
-exists. Asking once an hour loses the hour.
+The workflow was changed from hourly to every 10 minutes, with `src/main.py`
+keeping the first attempt in each hour and stopping the rest. Measured over two
+weeks on each side, it made no measurable difference: GitHub still delivered
+3 to 4 runs a day, which is roughly 15% of hours. More attempts do not make
+GitHub deliver more. The cron is hourly again at minute 23.
 
-So the workflow now fires every 10 minutes instead, and `src/main.py` keeps
-the first attempt in each hour and stops the rest. A skipped attempt reads two
-cells and exits, before any news fetch, price call or model call, so the extra
-attempts cost nothing.
+The guard is still there, in `config.MIN_MINUTES_BETWEEN_RUNS`, set to 55
+rather than 60 so a run at :03 does not block the one at :58. It is harmless,
+and it is what stops the worker and a scheduled run firing twice in the same
+hour. The worker dispatches with `force=false` so the guard applies to it. A
+hand started run (`workflow_dispatch`) from the Actions tab defaults to
+`--force` and ignores the guard, so manual testing always works.
 
-Six attempts an hour at roughly a 1 in 4 hit rate lands about 82% of hours,
-against 25% before. This repository is public, so the extra Actions minutes
-are free too.
+## The fix: an external scheduler
 
-The guard lives in `config.MIN_MINUTES_BETWEEN_RUNS`, set to 55 rather than 60
-on purpose: at 60 a run landing at :03 would block the attempt at :57 and the
-hour would be lost anyway.
-
-A hand started run (`workflow_dispatch`) passes `--force` and ignores the
-guard, so manual testing always works.
-
-## The belt and braces version
-
-Worth doing only if 82% is not enough. Cloudflare Workers cron triggers fire
-reliably. `worker.js` calls GitHub's `workflow_dispatch` endpoint once an hour
-and logs a warning when the previous run is more than three hours old.
-
-Needs a laptop.
+Cloudflare Workers cron triggers fire reliably. `worker.js` calls GitHub's
+`workflow_dispatch` endpoint once an hour and logs a warning when the previous
+run is more than three hours old. Any external scheduler that can call that
+endpoint would do the same job.
 
 **1. A GitHub token that can only do this one thing**
 
@@ -57,13 +51,12 @@ wrangler deploy
 `wrangler deploy` prints a `*.workers.dev` URL. Open it. It dispatches a run
 and reports how long ago the previous one was.
 
-**4. Only then, thin out the GitHub schedule**
+**4. Optionally, drop the GitHub schedule**
 
-Once Cloudflare triggered runs are landing, reduce the `cron:` line in
-`.github/workflows/hourly.yml` back to hourly, or drop it. Keep
-`workflow_dispatch:`, because that is what the worker calls.
-
-Do not touch step 4 before step 3 passes, or nothing is running the job.
+Once Cloudflare triggered runs are landing, the `cron:` line in
+`.github/workflows/hourly.yml` can be removed. Keep `workflow_dispatch:`,
+because that is what the worker calls. Do not do this before step 3 passes, or
+nothing is running the job.
 
 ## Free either way
 
@@ -73,6 +66,6 @@ Cloudflare's free plan covers 100,000 requests a day. This uses 24.
 
 The worker logs a warning when the last run is over three hours old
 (`wrangler tail`). Separately, the hourly job exits non zero after three
-consecutive runs that score nothing, which triggers GitHub's own failure
-email. Between them, silence is no longer indistinguishable from working,
-which is what let a dead API key go unnoticed for nineteen days.
+consecutive runs that tried to score and failed, which triggers GitHub's own
+failure email. Between them, silence is no longer indistinguishable from
+working, which is what let a dead API key go unnoticed for nineteen days.

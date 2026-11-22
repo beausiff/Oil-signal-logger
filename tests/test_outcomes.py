@@ -68,13 +68,46 @@ def test_already_filled_cells_are_left_alone():
     assert client.records(SIGNALS)[0]["price_1h"] == 79.0
 
 
-def test_move_is_blank_when_the_signal_had_no_price():
+def test_nothing_is_half_filled_when_the_signal_had_no_price():
+    """A filled price with a blank move is never revisited, so neither is written."""
     rows = [row(0, ""), row(1, 81.0)]
     client = FakeSheets({SIGNALS: rows})
     outcomes.backfill(client, BASE + timedelta(hours=2))
     first = client.records(SIGNALS)[0]
-    assert first["price_1h"] == 81.0
+    assert first["price_1h"] == ""
     assert first["move_1h_pct"] == ""
+
+
+def test_a_stale_logged_quote_is_not_an_outcome_price():
+    stale = row(1, 99.0, price_time_utc=(BASE - timedelta(hours=20)).isoformat())
+    client = FakeSheets({SIGNALS: [row(0, 80.0), stale]})
+    outcomes.backfill(client, BASE + timedelta(hours=3), fetch_range=lambda a, b: [])
+    assert client.records(SIGNALS)[0]["price_1h"] == ""
+
+
+def test_a_fresh_logged_quote_still_serves():
+    fresh = row(1, 81.0, price_time_utc=(BASE + timedelta(minutes=55)).isoformat())
+    client = FakeSheets({SIGNALS: [row(0, 80.0), fresh]})
+    outcomes.backfill(client, BASE + timedelta(hours=3), fetch_range=lambda a, b: [])
+    assert client.records(SIGNALS)[0]["price_1h"] == 81.0
+
+
+def clean_row(run_utc, quote_minutes_old=5):
+    when = datetime.fromisoformat(run_utc)
+    return {"run_utc": run_utc,
+            "price_time_utc": (when - timedelta(minutes=quote_minutes_old)).isoformat()}
+
+
+def test_is_clean_needs_open_market_fresh_quote_and_open_horizon():
+    # Wed 2026-09-16 17:05 UTC is 12:05 Chicago.
+    assert outcomes.is_clean(clean_row("2026-09-16T17:05:00+00:00"), 1)
+    assert not outcomes.is_clean(clean_row("2026-09-16T17:05:00+00:00", 90), 1)
+    assert not outcomes.is_clean({"run_utc": "2026-09-16T17:05:00+00:00"}, 1)
+    # Saturday run: closed at run time.
+    assert not outcomes.is_clean(clean_row("2026-09-19T17:05:00+00:00"), 1)
+    # Friday 14:05 Chicago: open now, closed 4 hours later.
+    assert outcomes.is_clean(clean_row("2026-09-18T19:05:00+00:00"), 1)
+    assert not outcomes.is_clean(clean_row("2026-09-18T19:05:00+00:00"), 4)
 
 
 # ------------------------------------- filling gaps from the price API --

@@ -24,8 +24,8 @@ from __future__ import annotations
 import sys
 from typing import List, Optional
 
-from src import stats
-from src.outcomes import to_float
+from src import config, stats
+from src.outcomes import is_clean, to_float
 from src.sheets import SIGNALS, SheetsClient
 from src import sheets
 
@@ -49,8 +49,17 @@ def paired(rows: List[dict], left: str, horizon: str, absolute: bool):
     return out
 
 
+def clean_rows(rows: List[dict], horizon: str) -> List[dict]:
+    """Rows whose forward move is a real one (see outcomes.is_clean)."""
+    hours = config.OUTCOME_HORIZONS_HOURS[horizon]
+    return [r for r in rows if is_clean(r, hours)]
+
+
 def report(data, label: str, rounds: int = 2000) -> Optional[float]:
-    if len(data) < 12:
+    """Verdict p is the circular shift one. Plain shuffling destroys the
+    autocorrelation, so on overlapping 24h and 72h moves it overstates
+    significance; its p is printed beside it for comparison only."""
+    if len(data) < 30:
         print("  %-34s n=%-4d too few" % (label, len(data)))
         return None
     xs = [d[0] for d in data]
@@ -59,12 +68,28 @@ def report(data, label: str, rounds: int = 2000) -> Optional[float]:
     if r is None:
         print("  %-34s n=%-4d no variance" % (label, len(data)))
         return None
-    result = stats.permutation_test(xs, ys, rounds=rounds)
+    result = stats.circular_shift_test(xs, ys, rounds=rounds)
+    plain = stats.permutation_test(xs, ys, rounds=rounds)
     p = result["p"] if result else float("nan")
-    print("  %-34s n=%-4d r=%+.3f  p=%.3f  %s"
-          % (label, len(data), r, p,
+    print("  %-34s n=%-4d r=%+.3f  p=%.3f (plain shuffle p=%.3f)  %s"
+          % (label, len(data), r, p, plain["p"] if plain else float("nan"),
              "SIGNAL" if p < 0.05 else "chance"))
     return p
+
+
+def report_both(rows: List[dict], left: str, horizon: str, absolute: bool, label: str,
+                keep=None) -> Optional[float]:
+    """Clean sample first, because closed market rows log the last quote, so
+    their moves are fake zeros or mislabelled. Returns the clean p."""
+    def data_for(sample):
+        data = paired(sample, left, horizon, absolute)
+        return [d for d in data if keep(d)] if keep else data
+
+    print("  [CLEAN, the one to trust]")
+    clean_p = report(data_for(clean_rows(rows, horizon)), label)
+    print("  [all rows]")
+    report(data_for(rows), label)
+    return clean_p
 
 
 def main() -> int:
@@ -79,30 +104,31 @@ def main() -> int:
     print("  Sign thrown away. A high score meaning 'something is happening'")
     print("  would show up here even with no directional skill at all.")
     for horizon in HORIZONS:
-        report(paired(rows, "score", horizon, absolute=True), "|score->|move|| %s" % horizon)
+        report_both(rows, "score", horizon, True, "|score->|move|| %s" % horizon)
 
     print("\n  same, using the absolute score, since a -6 is also a loud hour:")
-    loud = []
     for horizon in HORIZONS:
-        data = [(abs(x), y) for x, y in paired(rows, "score", horizon, absolute=True)]
-        loud.append(report(data, "abs(score)->|move| %s" % horizon))
+        for title, sample in (("CLEAN, the one to trust", clean_rows(rows, horizon)),
+                              ("all rows", rows)):
+            data = [(abs(x), y) for x, y in paired(sample, "score", horizon, absolute=True)]
+            print("  [%s]" % title)
+            report(data, "abs(score)->|move| %s" % horizon)
 
     print("\n--- 2. DOES IT PREDICT DIRECTION ON THE HOURS THAT MOVED? ---")
     print("  Ordinary hours are noise. If a signal exists it should show on")
     print("  the hours where something actually happened (|move| > %.1f%%)." % BIG_MOVE_PCT)
     for horizon in HORIZONS:
-        data = [(x, y) for x, y in paired(rows, "score", horizon, absolute=False)
-                if abs(y) >= BIG_MOVE_PCT]
-        report(data, "score->move, big moves %s" % horizon)
+        report_both(rows, "score", horizon, False, "score->move, big moves %s" % horizon,
+                    keep=lambda d: abs(d[1]) >= BIG_MOVE_PCT)
 
     print("\n--- 3. THE CONTROL: DOES COUNTING BEAT READING? ---")
     print("  Headline count needs no model and costs nothing. If it matches")
     print("  the score, the model is adding nothing over a word count.")
     for horizon in HORIZONS:
-        score_p = report(paired(rows, "score", horizon, absolute=True),
-                         "  model score -> |move| %s" % horizon)
-        count_p = report(paired(rows, "new_headline_count", horizon, absolute=True),
-                         "  headline count -> |move| %s" % horizon)
+        score_p = report_both(rows, "score", horizon, True,
+                               "  model score -> |move| %s" % horizon)
+        count_p = report_both(rows, "new_headline_count", horizon, True,
+                              "  headline count -> |move| %s" % horizon)
         if score_p is not None and count_p is not None:
             verdict = "model wins" if score_p < count_p else "counting wins or ties"
             print("  %-34s %s" % ("    ->", verdict))

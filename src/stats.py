@@ -114,3 +114,34 @@ def permutation_test(xs: Sequence[float], ys: Sequence[float], rounds: int = 200
     p = (at_least_as_extreme + 1) / (rounds + 1)
     return {"observed": observed, "rounds": rounds, "p": p,
             "beats": 1.0 - at_least_as_extreme / rounds}
+
+
+def circular_shift_test(xs: Sequence[float], ys: Sequence[float], rounds: int = 2000,
+                        seed: int = 20261107) -> Optional[dict]:
+    """Permutation test that keeps each series' own autocorrelation.
+
+    The null correlates xs[i] with ys[(i + k) % n] for a random shift k kept
+    well away from zero. Sliding the series round the clock breaks any real
+    link between them but leaves both series' persistence intact, which a plain
+    shuffle destroys. That matters here: consecutive rows share news and the
+    24h and 72h moves overlap, so a plain shuffle overstates significance.
+    Same return shape as permutation_test.
+    """
+    n = len(xs)
+    if n != len(ys) or n < 30:
+        return None
+    observed = pearson(xs, ys)
+    if observed is None:
+        return None
+
+    rng = random.Random(seed)
+    at_least_as_extreme = 0
+    for _ in range(rounds):
+        k = rng.randint(10, n - 10)
+        r = pearson(xs, [ys[(i + k) % n] for i in range(n)])
+        if r is not None and abs(r) >= abs(observed):
+            at_least_as_extreme += 1
+
+    p = (at_least_as_extreme + 1) / (rounds + 1)
+    return {"observed": observed, "rounds": rounds, "p": p,
+            "beats": 1.0 - at_least_as_extreme / rounds}

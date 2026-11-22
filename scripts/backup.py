@@ -3,7 +3,7 @@
     python -m scripts.backup
 
 The sheet is the only copy of this experiment's data. The code is in git with
-full history; the 255 rows it was all built to collect are in one Google
+full history; the rows it was all built to collect are in one Google
 document that anyone with access can delete. This makes them as durable as the
 code, for nothing.
 

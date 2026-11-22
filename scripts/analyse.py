@@ -12,7 +12,7 @@ import sys
 from typing import List, Optional
 
 from src import config, stats
-from src.outcomes import to_float
+from src.outcomes import is_clean, to_float
 from src.sheets import SIGNALS, WEEKEND_GAPS, SheetsClient
 
 HORIZONS = ["1h", "4h", "24h", "72h"]
@@ -52,6 +52,16 @@ def correlate(rows: List[dict], horizon: str, label: str) -> None:
         "  %-28s n=%-4d n_eff=%-6.1f r=%+.3f  95%% CI [%+.3f, %+.3f]  %s"
         % (label, len(data), neff, r, lo, hi, straddles)
     )
+
+
+def clean_rows(rows: List[dict], horizon: str) -> List[dict]:
+    """Rows whose forward move is a real one (see outcomes.is_clean).
+
+    Closed market rows log the last quote, so their moves are fake zeros or
+    mislabelled. The clean sample is the one to trust.
+    """
+    hours = config.OUTCOME_HORIZONS_HOURS[horizon]
+    return [r for r in rows if is_clean(r, hours)]
 
 
 def score_distribution(rows: List[dict]) -> None:
@@ -136,6 +146,10 @@ def main() -> int:
     score_distribution(rows)
 
     print("\n--- 2. DOES THE SCORE PREDICT THE MOVE? ---")
+    print("  CLEAN sample (market open at run and horizon, fresh quote): the one to trust.")
+    for horizon in HORIZONS:
+        correlate(clean_rows(rows, horizon), horizon, "CLEAN, %s" % horizon)
+    print("\n  all rows (closed market rows included, treat with care):")
     for horizon in HORIZONS:
         correlate(rows, horizon, "all rows, %s" % horizon)
     print("\n  market open rows only:")
@@ -229,9 +243,14 @@ def main() -> int:
     def day(row, field):
         return str(row.get(field, ""))[:10]
 
+    # Rows still needing a score are the blank ones. action stays "error" on a
+    # row after backfill, so it cannot say whether the gap is still open.
+    def needs_score(r):
+        return str(r.get("score", "")).strip() == "" and to_float(r.get("new_headline_count")) not in (None, 0.0)
+
     gap_days = {}
     for r in rows:
-        if str(r.get("action", "")).strip() != "error":
+        if not needs_score(r):
             continue
         gap_days.setdefault(day(r, "run_utc"), {"rows": 0, "runs": set()})
         gap_days[day(r, "run_utc")]["rows"] += 1
@@ -242,7 +261,7 @@ def main() -> int:
         head_by_run.setdefault(str(h.get("run_utc")), 0)
         head_by_run[str(h.get("run_utc"))] += 1
 
-    print("  %-12s %-10s %-10s %s" % ("day", "err rows", "headlines", "runs with 0 headlines"))
+    print("  %-12s %-10s %-10s %s" % ("day", "no score", "headlines", "runs with 0 headlines"))
     total_err = total_head = 0
     for d in sorted(gap_days):
         runs = gap_days[d]["runs"]
@@ -254,9 +273,8 @@ def main() -> int:
     print("  %-12s %-10d %-10d" % ("TOTAL", total_err, total_head))
 
     have_price = sum(1 for r in rows
-                     if str(r.get("action", "")).strip() == "error"
-                     and to_float(r.get("brent_price")) is not None)
-    print("  error rows that still logged a Brent price: %d of %d" % (have_price, total_err))
+                     if needs_score(r) and to_float(r.get("brent_price")) is not None)
+    print("  rows still needing a score that logged a Brent price: %d of %d" % (have_price, total_err))
 
     print("\n--- 10. LIVE ROWS vs BACKFILLED ROWS ---")
     # Backfilled rows were scored after the fact. The model could not see what
@@ -276,21 +294,29 @@ def main() -> int:
 
     print("\n--- 11. PERMUTATION TEST ---")
     # "The interval crosses zero" is a weak sentence. This gives the result
-    # something concrete to beat: shuffle the scores against the moves
-    # thousands of times and see how often pure chance does as well.
-    print("  2000 shuffles per horizon. p = share of shuffles that matched or beat the real correlation.")
-    for label, subset in (("all rows", rows), ("market open", open_rows)):
+    # something concrete to beat. The verdict p slides the moves round the
+    # clock (circular shift), which keeps their autocorrelation; the plain
+    # shuffle p is printed beside it because plain shuffling destroys the
+    # autocorrelation and so overstates significance on overlapping 24h and 72h
+    # moves.
+    print("  2000 shifts per horizon. p = share of shifts that matched or beat the real correlation.")
+    for label, sample_for in (
+        ("CLEAN (trust)", lambda h: clean_rows(rows, h)),
+        ("all rows", lambda h: rows),
+        ("market open", lambda h: open_rows),
+    ):
         for horizon in HORIZONS:
-            data = pairs(subset, horizon)
-            if len(data) < 8:
-                print("  %-22s %-5s n=%-4d too few" % (label, horizon, len(data)))
-                continue
-            result = stats.permutation_test([d[0] for d in data], [d[1] for d in data])
+            data = pairs(sample_for(horizon), horizon)
+            xs, ys = [d[0] for d in data], [d[1] for d in data]
+            result = stats.circular_shift_test(xs, ys)
             if result is None:
+                print("  %-22s %-5s n=%-4d too few or no variance" % (label, horizon, len(data)))
                 continue
+            plain = stats.permutation_test(xs, ys)
             verdict = "SIGNAL" if result["p"] < 0.05 else "indistinguishable from chance"
-            print("  %-22s %-5s n=%-4d r=%+.3f  p=%.3f  %s"
-                  % (label, horizon, len(data), result["observed"], result["p"], verdict))
+            print("  %-22s %-5s n=%-4d r=%+.3f  p=%.3f (plain shuffle p=%.3f)  %s"
+                  % (label, horizon, len(data), result["observed"], result["p"],
+                     plain["p"] if plain else float("nan"), verdict))
 
     print("\n" + "=" * 78)
     return 0

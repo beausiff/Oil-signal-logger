@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from . import config
+from . import config, rules
 
 
 def parse_utc(value: str) -> Optional[datetime]:
@@ -34,12 +34,32 @@ def to_float(value) -> Optional[float]:
         return None
 
 
+def quote_age_minutes(row: dict) -> Optional[float]:
+    """Minutes between the run and the moment its Brent quote was taken.
+
+    None when the row does not say. A closed market logs the last quote, which
+    can be a day old, so run_utc alone is not when that price was true.
+    """
+    run_at = parse_utc(row.get("run_utc", ""))
+    quoted_at = parse_utc(row.get("price_time_utc", ""))
+    if run_at is None or quoted_at is None:
+        return None
+    return (run_at - quoted_at).total_seconds() / 60.0
+
+
 def build_price_series(records: Sequence[dict]) -> List[Tuple[datetime, float]]:
-    """Every logged Brent price, oldest first, keyed on the run timestamp."""
+    """Every logged Brent price, oldest first, keyed on the run timestamp.
+
+    A row whose quote was stale is left out: it would stand in for a price at a
+    time it was not true. Rows that do not record a quote time are kept.
+    """
     series: List[Tuple[datetime, float]] = []
     for row in records:
         when = parse_utc(row.get("run_utc", ""))
         price = to_float(row.get("brent_price"))
+        age = quote_age_minutes(row)
+        if age is not None and age > config.OUTCOME_MATCH_WINDOW_MINUTES:
+            continue
         if when is not None and price is not None:
             series.append((when, price))
     series.sort(key=lambda item: item[0])
@@ -60,6 +80,22 @@ def nearest_price(
     return best[1] if best else None
 
 
+def is_clean(row: dict, horizon_hours: float) -> bool:
+    """Is this row's forward move a real one?
+
+    Market open at the run, a fresh quote (within 30 minutes), and market open
+    at the horizon. Closed market rows log the last quote, so their moves are
+    fake zeros or mislabelled; the analyses report on this sample first.
+    """
+    run_at = parse_utc(row.get("run_utc", ""))
+    age = quote_age_minutes(row)
+    if run_at is None or age is None or abs(age) > 30:
+        return False
+    if not rules.is_market_open(rules.to_chicago(run_at)):
+        return False
+    return rules.is_market_open(rules.to_chicago(run_at + timedelta(hours=horizon_hours)))
+
+
 def pending_targets(records: Sequence[dict], now_utc: datetime) -> List[dict]:
     """Every outcome cell that is blank and whose horizon has already passed."""
     pending: List[dict] = []
@@ -68,6 +104,10 @@ def pending_targets(records: Sequence[dict], now_utc: datetime) -> List[dict]:
         if run_at is None:
             continue
         base_price = to_float(row.get("brent_price"))
+        if not base_price:
+            # No base to measure from: filling the price alone would leave the
+            # move blank for good, because a filled cell is never revisited.
+            continue
 
         for label, hours in config.OUTCOME_HORIZONS_HOURS.items():
             if str(row.get("price_%s" % label, "")).strip():

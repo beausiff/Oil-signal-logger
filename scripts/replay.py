@@ -2,10 +2,10 @@
 
     python -m scripts.replay
 
-This is a simulation, twice over. The paper rules never ran on the 92 rows
-that were rescored after the fact, and even the live rows only ever produced
-paper positions. Nothing here is a trade that happened. The real record is the
-`trades` tab, and it holds one closed trade.
+This is a simulation, twice over. The paper rules never ran on the rows that
+were rescored after the fact, and even the live rows only ever produced paper
+positions. Nothing here is a trade that happened. The real record is the
+`trades` tab.
 
 It exists to answer one question the sheet cannot: over the whole period, with
 every hour scored, would the rules have made money? It imports rules.py rather
@@ -13,18 +13,22 @@ than restating the logic, so what it replays is the locked rules themselves.
 
 Three honest limits, in descending order of how much they matter:
 
-  * Survivorship of the gap. 37% of rows were scored afterwards. The model was
-    blind to what came next, but these were never acted on in real time.
-  * Dropped runs. GitHub fired roughly one hour in four, so the replay sees
-    the same sparse clock the live system did. A stop that would have hit
+  * Survivorship of the gap. A large share of rows were scored afterwards
+    (score_source starts with "backfilled"). The model was blind to what came
+    next, but these were never acted on in real time.
+  * Dropped runs. GitHub fires only a few scheduled runs a day, so the replay
+    sees the same sparse clock the live system did. A stop that would have hit
     between two runs is only caught at the next one.
   * One unit, no costs beyond the configured spread, no slippage, no funding.
+
+The two controls below are there to try to kill the result, and with this few
+trades neither proves anything either way.
 """
 
 from __future__ import annotations
 
 import sys
-import random
+from datetime import timedelta
 from typing import List, Optional
 
 from src import config, rules, sheets
@@ -37,8 +41,37 @@ def truthy(value) -> bool:
     return str(value).strip().lower() in ("true", "1", "yes")
 
 
+# Variants of the locked rules were picked after looking at the first 310 rows,
+# so those rows cannot judge them. Rows logged on or after this date can.
+REGISTERED_ON = "2026-11-23"
+
+
 def replay(rows: List[dict]):
+    return _replay_loop(rows)
+
+
+def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: bool = True):
+    """The replay with one of two switches changed. Live rules are untouched.
+
+    entry=N overrides the entry threshold to +/-N for this call only, in
+    memory, and restores config in a finally. use_reversal=False ignores a
+    reversal exit and leaves the position open as a hold would; the Friday
+    close, the late weekend close and the trailing stop still apply.
+    """
+    if entry is None:
+        return _replay_loop(rows, use_reversal=use_reversal)
+    saved = (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE)
+    config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = entry, -entry
+    try:
+        return _replay_loop(rows, use_reversal=use_reversal)
+    finally:
+        config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = saved
+
+
+def _replay_loop(rows: List[dict], use_reversal: bool = True):
     position = FLAT
+    entry_source = ""
+    last_price = None
     trades = []
     skipped_no_price = 0
 
@@ -61,6 +94,12 @@ def replay(rows: List[dict]):
             now_chicago=local, price=price,
         )
         position = decision.position_after
+        if not use_reversal and decision.action == "close" and decision.exit_reason == "reversal":
+            # Ignored: stay open exactly as a hold would.
+            decision = rules.Decision(action="hold", position_after=before)
+            position = before
+            if price is not None and rules.is_market_open(local):
+                position = rules.update_best_price(before, price)
 
         if decision.action in ("buy", "sell"):
             position = Position(
@@ -69,8 +108,13 @@ def replay(rows: List[dict]):
                 best_price=position.best_price,
                 trade_id="R-%s-%s" % (str(row.get("run_utc", ""))[:16], position.side[0].upper()),
             )
+            entry_source = str(row.get("score_source", "")) or "live"
         elif decision.action == "close" and before.is_open:
-            exit_price = price if price is not None else before.best_price
+            # No quote: the last price seen, never the best price, which would
+            # book the exit at the most favourable print of the trade.
+            exit_price = price
+            if exit_price is None:
+                exit_price = last_price if last_price is not None else before.entry_price
             usd, pct = rules.pnl(before.side, before.entry_price or 0.0, exit_price or 0.0)
             entry_at = parse_utc(before.entry_utc or "")
             exit_at = parse_utc(str(row.get("run_utc", "")))
@@ -82,26 +126,57 @@ def replay(rows: List[dict]):
                 "exit_utc": str(row.get("run_utc", "")), "exit_price": exit_price,
                 "reason": decision.exit_reason or "manual",
                 "pnl_usd": usd, "pnl_pct": pct, "hours": hours,
-                "source": str(row.get("score_source", "")) or "live",
+                "source": entry_source,
             })
+
+        if price is not None:
+            last_price = price
 
     return trades, position, skipped_no_price
 
 
-def calendar_only(rows: List[dict]):
-    """The same discipline with the news removed.
+def _trading_week(local):
+    """(iso year, iso week) of the Monday to Friday week this row trades in.
 
-    The four replayed trades were all long and both winners were closed by the
-    Friday rule, not by anything the score said. So this is the control: go
-    long at the first open hour of each week and close on the Friday rule,
-    reading no headlines at all. Same spread, same weekend flat stance.
+    Sunday evening belongs to the Monday that follows it, so a run just after
+    the Sunday reopen and the first run on Monday count as the same week.
+    """
+    day = local.date()
+    if local.weekday() == rules.SUNDAY:
+        day += timedelta(days=1)
+    return day.isocalendar()[:2]
 
-    If this matches the scored strategy, the news is contributing nothing and
-    what looked like a signal was a calendar.
+
+def calendar_only(rows: List[dict], use_stop: bool = False):
+    """The same calendar discipline with the news removed.
+
+    Go long at the first priced, open, entry-allowed Monday to Friday row of each
+    trading week,
+    read no headlines at all, and leave on the same exits the rules use that
+    need no score: the Friday close run, the first row inside the weekend
+    shutdown if no run landed in the Friday close hour (closed at that row's
+    price, as rules.decide does), and optionally the trailing stop. One entry
+    per week, never held across a weekend. The reversal exit is not applied,
+    because it needs a score.
+
+    It is a control, not a verdict. If it matches the scored strategy, the
+    news is contributing nothing and what looked like a signal was a calendar.
+    With this few trades neither outcome is conclusive. The result is also
+    sensitive to entry timing (allowing Sunday evening entries gives -$3.21 with
+    no stop and -$21.92 with the stop on the 310 row backup), so it is a rough
+    control.
     """
     position = FLAT
     trades = []
     seen_weeks = set()
+    last_price = None
+
+    def close(row, price, reason):
+        usd, pct = rules.pnl("long", position.entry_price or 0.0, price)
+        trades.append({"side": "long", "entry_utc": position.entry_utc,
+                       "entry_price": position.entry_price,
+                       "exit_utc": str(row.get("run_utc", "")), "exit_price": price,
+                       "reason": reason, "pnl_usd": usd, "pnl_pct": pct})
 
     for row in rows:
         when = parse_utc(row.get("run_chicago", ""))
@@ -109,46 +184,60 @@ def calendar_only(rows: List[dict]):
             continue
         local = when.astimezone(rules.CHICAGO)
         price = to_float(row.get("brent_price"))
-        if price is None or not rules.is_market_open(local):
-            continue
+        is_open = rules.is_market_open(local)
 
         if position.is_open:
-            position = rules.update_best_price(position, price)
-            if rules.is_friday_close_run(local):
-                usd, pct = rules.pnl("long", position.entry_price or 0.0, price)
-                trades.append({"entry_utc": position.entry_utc, "entry_price": position.entry_price,
-                               "exit_utc": str(row.get("run_utc", "")), "exit_price": price,
-                               "pnl_usd": usd, "pnl_pct": pct})
+            if is_open and price is not None:
+                position = rules.update_best_price(position, price)
+            exit_price = price if price is not None else last_price
+            reason = None
+            if rules.is_weekend_shutdown(local):
+                reason = "friday"
+            elif is_open and rules.is_friday_close_run(local):
+                reason = "friday"
+            elif use_stop and is_open and rules.trailing_stop_hit(position, price):
+                reason = "stop"
+            if reason and exit_price is not None:
+                close(row, exit_price, reason)
                 position = FLAT
-            continue
+        elif is_open and price is not None and local.weekday() != rules.SUNDAY:
+            # Not on the thin Sunday reopen: the week's entry is its first
+            # Monday to Friday row, and Sunday evening is the same week.
+            week = _trading_week(local)
+            if week not in seen_weeks and rules.entries_allowed(local):
+                seen_weeks.add(week)
+                position = Position(side="long", entry_price=price,
+                                    entry_utc=str(row.get("run_utc", "")),
+                                    entry_score=0, best_price=price, trade_id="CAL")
 
-        week = local.isocalendar()[:2]
-        if week in seen_weeks or not rules.entries_allowed(local):
-            continue
-        seen_weeks.add(week)
-        position = Position(side="long", entry_price=price, entry_utc=str(row.get("run_utc", "")),
-                            entry_score=0, best_price=price, trade_id="CAL")
+        if price is not None:
+            last_price = price
 
     return trades
 
 
-def shuffled_strategy(rows: List[dict], rounds: int = 1000, seed: int = 20261107):
-    """Replay the rules on shuffled scores, over and over.
+def shuffled_strategy(rows: List[dict], min_offset: int = 10):
+    """Replay the rules on circularly shifted scores, at every offset.
 
-    This keeps every price exactly where it is and only moves the scores
-    around, which destroys any real link between a score and what followed it
-    while leaving both distributions untouched. If the real strategy's result
-    sits in the middle of this pile, the scores told it nothing.
+    This keeps every price and timestamp exactly where it is and slides the
+    (score, confidence) sequence round the clock by k rows, for every k from
+    min_offset to n - min_offset. That breaks the link between a score and
+    what followed it while keeping the scores' own persistence (consecutive
+    hours share news, so they repeat), which a plain shuffle destroys and which
+    makes a plain shuffle's null too easy to beat. Returns one total per
+    offset. If the real result sits in the middle of this pile, the scores told
+    it nothing.
     """
+    n = len(rows)
+    if n < 3 * min_offset:
+        return []
     pairs_in = [(r.get("score", ""), r.get("confidence", "")) for r in rows]
-    rng = random.Random(seed)
     totals = []
     scratch = [dict(r) for r in rows]
 
-    for _ in range(rounds):
-        rng.shuffle(pairs_in)
-        for row, (score, confidence) in zip(scratch, pairs_in):
-            row["score"], row["confidence"] = score, confidence
+    for k in range(min_offset, n - min_offset + 1):
+        for i, row in enumerate(scratch):
+            row["score"], row["confidence"] = pairs_in[(i + k) % n]
         trades, _, _ = replay(scratch)
         totals.append(sum(t["pnl_usd"] for t in trades))
     return totals
@@ -212,33 +301,60 @@ def main() -> int:
               % (first, last, (last - first) / first * 100.0))
     real_total = sum(t["pnl_usd"] for t in trades)
 
-    print("\n  CONTROL 1: the same rules with the news removed")
-    cal = calendar_only(rows)
-    if not cal:
-        print("    no trades")
-    else:
-        cal_usd = sum(t["pnl_usd"] for t in cal)
-        cal_pct = sum(t["pnl_pct"] for t in cal)
+    print("\n  CONTROL 1: the calendar alone, no headlines read")
+    print("    long at the first open weekday row of each week, out by the Friday close.")
+    print("    A control, not a verdict: n is small, so a gap either way proves little.")
+    for label, use_stop in (("no stop  ", False), ("3% stop   ", True)):
+        cal = calendar_only(rows, use_stop=use_stop)
+        if not cal:
+            print("    %s no trades" % label)
+            continue
         wins = sum(1 for t in cal if t["pnl_usd"] > 0)
-        print("    long each week, flat by Friday, zero headlines read")
-        print("    trades: %d   winners: %d (%.0f%%)   total: $%+.2f/bbl   sum of returns: %+.2f%%"
-              % (len(cal), wins, 100.0 * wins / len(cal), cal_usd, cal_pct))
-        print("    the scored strategy made $%+.2f/bbl, so the news is worth $%+.2f/bbl"
-              % (real_total, real_total - cal_usd))
+        print("    %s trades: %d   winners: %d (%.0f%%)   total: $%+.2f/bbl   sum of returns: %+.2f%%"
+              % (label, len(cal), wins, 100.0 * wins / len(cal),
+                 sum(t["pnl_usd"] for t in cal), sum(t["pnl_pct"] for t in cal)))
+    print("    the scored strategy made $%+.2f/bbl over %d trades" % (real_total, len(trades)))
 
-    print("\n  CONTROL 2: the same rules on shuffled scores, 1000 times")
     totals = shuffled_strategy(rows)
-    beaten = sum(1 for t in totals if t >= real_total)
-    p = (beaten + 1) / (len(totals) + 1)
-    totals_sorted = sorted(totals)
-    print("    shuffled median: $%+.2f/bbl   5th to 95th: $%+.2f to $%+.2f"
-          % (totals_sorted[len(totals) // 2],
-             totals_sorted[int(0.05 * len(totals))],
-             totals_sorted[int(0.95 * len(totals))]))
-    print("    real result $%+.2f/bbl beaten by %d of %d shuffles   p=%.3f   %s"
-          % (real_total, beaten, len(totals), p,
-             "SIGNAL" if p < 0.05 else "indistinguishable from chance"))
+    print("\n  CONTROL 2: the same rules on circularly shifted scores, %d offsets" % len(totals))
+    if not totals:
+        print("    too few rows to shift")
+    else:
+        beaten = sum(1 for t in totals if t >= real_total)
+        p = (beaten + 1) / (len(totals) + 1)
+        totals_sorted = sorted(totals)
+        print("    shifted median: $%+.2f/bbl   5th to 95th: $%+.2f to $%+.2f"
+              % (totals_sorted[len(totals) // 2],
+                 totals_sorted[int(0.05 * len(totals))],
+                 totals_sorted[int(0.95 * len(totals))]))
+        print("    real result $%+.2f/bbl matched or beaten by %d of %d shifts   p=%.3f   %s"
+              % (real_total, beaten, len(totals), p,
+                 "SIGNAL" if p < 0.05 else "indistinguishable from chance"))
 
+    print("\n" + "=" * 78)
+    print("REGISTERED VARIANTS (fixed 2026-11-22, judged only on later rows)")
+    print("=" * 78)
+    # Two variants of the locked rules beat the shifted null on the first 310
+    # rows, but they were picked after seeing those rows (about nine variants
+    # were tried), so that data cannot judge them. They are fixed here and
+    # judged only on trades entered on or after REGISTERED_ON. The whole
+    # history is replayed so position state carries across the boundary, and
+    # each trade is classed by its entry time. Nothing here changes the live rules.
+    for name, kwargs in (
+        ("locked rules", {}),
+        ("no reversal exit", {"use_reversal": False}),
+        ("entry at +/-4", {"entry": 4}),
+    ):
+        vtrades, _, _ = replay_variant(rows, **kwargs)
+        early = [t for t in vtrades if str(t["entry_utc"])[:10] < REGISTERED_ON]
+        late = [t for t in vtrades if str(t["entry_utc"])[:10] >= REGISTERED_ON]
+        for label, group, note in (
+            ("in sample", early, "what suggested it, not evidence"),
+            ("out of sample", late, "too few to judge" if len(late) < 10 else ""),
+        ):
+            wins = sum(1 for t in group if t["pnl_usd"] > 0)
+            print("  %-17s %-13s trades: %-3d winners: %-3d total: $%+.2f/bbl   %s"
+                  % (name, label, len(group), wins, sum(t["pnl_usd"] for t in group), note))
     print("=" * 78)
     return 0
 

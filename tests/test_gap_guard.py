@@ -1,5 +1,7 @@
-"""GitHub drops most scheduled runs, so the workflow asks six times an hour.
-These check that the extra attempts cost nothing and never skip a real hour."""
+"""The job is scheduled hourly and GitHub delivers only a few runs a day. The
+gap guard skips a run that lands too soon after the previous one (a dispatch
+next to a scheduled run). These check that it costs nothing and never skips a
+real hour."""
 
 from __future__ import annotations
 
@@ -60,7 +62,15 @@ def test_the_guard_runs_before_anything_is_spent():
         assert source.index(costly) > guard, costly
 
 
-def test_the_schedule_fires_more_than_once_an_hour():
+def test_the_schedule_is_hourly():
+    """Six attempts an hour was tried and changed nothing, so it is one again."""
     workflow = open(".github/workflows/hourly.yml").read()
     cron = workflow.split('- cron: "')[1].split('"')[0]
-    assert len(cron.split()[0].split(",")) >= 4
+    minute, hour = cron.split()[:2]
+    assert minute.isdigit() and hour == "*"
+
+
+def test_the_worker_dispatches_with_the_guard_on():
+    """workflow_dispatch defaults force to true, which would bypass the guard."""
+    worker = open("scheduler/worker.js").read()
+    assert '"force": "false"' in worker or 'force: "false"' in worker

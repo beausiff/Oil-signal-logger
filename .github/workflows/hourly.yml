@@ -2,12 +2,11 @@ name: hourly
 
 on:
   schedule:
-    # Every 10 minutes, not hourly, and deliberately off the top of the hour.
-    # GitHub drops most scheduled runs under load, so asking once an hour
-    # loses the hour. Six attempts an hour, at odd minutes, nearly always
-    # lands one. src/main.py keeps the first and stops the rest before they
-    # spend anything, so this is six cheap attempts, not six runs.
-    - cron: "3,13,23,33,43,53 * * * *"
+    # Hourly, deliberately off the top of the hour. GitHub only delivers about
+    # 3 to 4 of these a day for this repository. Six attempts an hour was tried
+    # and made no measurable difference, so this is back to one. The gap guard
+    # in src/main.py is kept: it is harmless and an external scheduler needs it.
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

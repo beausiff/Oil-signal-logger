@@ -1,7 +1,7 @@
 // Fires the hourly run on a clock that actually keeps time.
 //
-// GitHub's own scheduler dropped roughly three runs in four, which cost this
-// experiment most of its sample size. Cloudflare's cron triggers are on the
+// GitHub's own scheduler delivers only about 3 to 4 of the 24 hourly runs a
+// day, which costs this experiment most of its sample size. Cloudflare's cron triggers are on the
 // free plan and fire reliably, so this worker does nothing but call GitHub's
 // workflow_dispatch endpoint once an hour.
 //
@@ -41,7 +41,9 @@ async function dispatch(token) {
   const res = await fetch(`${API}/workflows/${WORKFLOW}/dispatches`, {
     method: "POST",
     headers: { ...headers(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ ref: BRANCH }),
+    // force=false so the gap guard in src/main.py applies; the workflow's
+    // default for a hand started run is to skip it.
+    body: JSON.stringify({ ref: BRANCH, inputs: { force: "false" } }),
   });
   // 204 is success for this endpoint. Anything else is worth seeing.
   if (res.status !== 204) {

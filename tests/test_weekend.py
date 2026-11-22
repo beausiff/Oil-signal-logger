@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -428,12 +428,35 @@ def test_several_outstanding_weekends_are_all_completed():
         (weekend.reopen_utc("2026-09-25"), 111.0),
         (weekend.monday_noon_utc("2026-09-25"), 112.0),
     ]
-    later = datetime(2026, 10, 1, 9, 0, tzinfo=timezone.utc)
+    # Exactly the second Monday noon: the first weekend is still inside the
+    # give up window.
+    later = weekend.monday_noon_utc("2026-09-25")
 
     weekend.complete_pending(client, later, fetch_range=RangeStub(points))
 
     rows = client.records(WEEKEND_GAPS)
     assert [r["monday_12utc_price"] for r in rows] == [102.0, 112.0]
+
+
+def test_a_missing_price_is_given_up_on_after_the_window():
+    """Past WEEKEND_GIVE_UP_DAYS it stops asking the API, and stays blank."""
+    client = seeded_weekend()
+    calls = []
+
+    def fetch(start, end):
+        calls.append(start)
+        return []
+
+    target = weekend.monday_noon_utc("2026-09-18")
+    inside = target + timedelta(days=weekend.config.WEEKEND_GIVE_UP_DAYS - 1)
+    outside = target + timedelta(days=weekend.config.WEEKEND_GIVE_UP_DAYS + 1)
+
+    weekend.complete_pending(client, inside, fetch_range=fetch)
+    assert calls
+    calls.clear()
+    weekend.complete_pending(client, outside, fetch_range=fetch)
+    assert calls == []
+    assert client.records(WEEKEND_GAPS)[0]["monday_12utc_price"] == ""
 
 
 def test_is_past_monday_noon_stays_true_after_monday():
