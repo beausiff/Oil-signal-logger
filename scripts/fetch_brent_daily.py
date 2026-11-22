@@ -15,7 +15,10 @@ from __future__ import annotations
 import csv
 import io
 import os
+import json
 import sys
+import time
+import urllib.error
 import urllib.request
 
 START = "2021-11-01"
@@ -27,10 +30,22 @@ FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU&cosd
 STOOQ_URL = "https://stooq.com/q/d/l/?s=lcox.f&i=d&d1=20211101"
 
 
-def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (research script)"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+def http_get(url: str, tries: int = 3, timeout: int = 120) -> str:
+    last = None
+    for attempt in range(tries):
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (research script)"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500 and exc.code != 429:
+                raise
+            last = exc
+        except OSError as exc:  # timeouts, resets
+            last = exc
+        print("  attempt %d failed for %s: %s" % (attempt + 1, url.split("?")[0], type(last).__name__))
+        time.sleep(5)
+    raise last
 
 
 def parse_two_columns(text: str, date_col: int = 0, price_col: int = 1):
@@ -60,23 +75,24 @@ def from_stooq():
 
 
 def from_eia():
-    # EIA's csv-ish history page for RBRTE daily.
-    text = http_get("https://www.eia.gov/dnav/pet/hist_xls/RBRTEd.csv")
+    # EIA open data API v2 with the public DEMO_KEY (keyless in practice):
+    # the same RBRTE series that FRED republishes.
+    url = ("https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=DEMO_KEY"
+           "&frequency=daily&data[0]=value&facets[series][]=RBRTE&start=" + START +
+           "&sort[0][column]=period&sort[0][direction]=asc&length=5000")
+    body = json.loads(http_get(url))
     rows = []
-    for rec in csv.reader(io.StringIO(text)):
-        if len(rec) >= 2:
-            try:
-                m, d, y = rec[0].strip().replace("/", "-").split("-")
-                iso = "%04d-%02d-%02d" % (int(y), int(m), int(d))
-                rows.append((iso, float(rec[1])))
-            except ValueError:
-                continue
-    return [r for r in rows if r[0] >= START]
+    for rec in body["response"]["data"]:
+        try:
+            rows.append((rec["period"], float(rec["value"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
 
 
 SOURCES = [
     ("FRED DCOILBRENTEU (EIA Brent spot)", from_fred),
-    ("EIA RBRTEd (Brent spot)", from_eia),
+    ("EIA API v2 RBRTE (Brent spot, DEMO_KEY)", from_eia),
     ("Stooq LCO.F (Brent front-month future, not spot)", from_stooq),
 ]
 
