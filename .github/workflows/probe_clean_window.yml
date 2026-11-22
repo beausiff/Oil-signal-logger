@@ -1,0 +1,45 @@
+name: probe_clean_window
+
+# One-off feasibility probe for a clean-window news backtest: GDELT headlines,
+# OilPriceAPI history, and one cheap model self report. Commits
+# backtest/probe_clean_window.txt. Manual only.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oil-signal-logger
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run the probe
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          OILPRICE_API_KEY: ${{ secrets.OILTRACKER }}
+        run: python -m scripts.probe_clean_window
+      - name: Commit the findings
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backtest/probe_clean_window.txt
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "Probe: clean window feasibility findings"
+            git pull --rebase -q origin main || true
+            git push
+          fi
