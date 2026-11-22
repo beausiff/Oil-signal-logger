@@ -91,19 +91,26 @@ def gdelt_probe():
         params = {"query": QUERY, "mode": "artlist", "format": "csv", "maxrecords": 75,
                   "startdatetime": start.strftime("%Y%m%d%H%M%S"),
                   "enddatetime": end.strftime("%Y%m%d%H%M%S"), "sort": "datedesc"}
-        time.sleep(7)
+        time.sleep(20)
         status, body = gdelt_get(params)
         say("-- %s: %s to %s UTC, HTTP %s" % (label, start.strftime("%Y-%m-%d %H:%M"), end.strftime("%H:%M"), status))
         if status != 200:
             say("  body start: " + body[:160].replace("\n", " "))
             continue
-        rows = list(csv.DictReader(io.StringIO(body)))
+        recs = list(csv.reader(io.StringIO(body)))
+        header = [h.strip().lower() for h in recs[0]] if recs else []
+        rows = recs[1:]
+        say("  csv header: %s" % ",".join(header))
         say("  articles returned: %d (max requested 75)" % len(rows))
+
+        def col(r, *names):
+            for n in names:
+                if n in header and header.index(n) < len(r):
+                    return r[header.index(n)]
+            return ""
         for r in rows[:5]:
-            title = r.get("Title") or r.get("title") or ""
-            seen = r.get("Seendate") or r.get("seendate") or ""
-            dom = r.get("Domain") or r.get("domain") or ""
-            say("  %s | %s | %s" % (seen, dom, title))
+            say("  %s | %s | %s" % (col(r, "seendate", "date"), col(r, "domain"),
+                                  col(r, "title", "urltitle")))
     say("live system search terms: " + ", ".join(config.SEARCH_TERMS))
     say()
 
@@ -116,6 +123,14 @@ def price_probe():
         probes.append(("%s 6h" % label, start, start + timedelta(hours=6)))
     for label, start in WINDOWS:
         probes.append(("%s 24h" % label, start, start + timedelta(hours=24)))
+    # The range endpoint returns the LAST 100 points of a window, so a 6h window
+    # is truncated; these 20 minute slices at each window start show real coverage.
+    for label, start in WINDOWS:
+        probes.append(("%s first 20 min of window" % label, start, start + timedelta(minutes=20)))
+    for label, day in (("2026-02-02 (just after Jan 2026 cutoff)", datetime(2026, 2, 2, 12, tzinfo=timezone.utc)),
+                       ("2025-11-03 (before cutoff)", datetime(2025, 11, 3, 12, tzinfo=timezone.utc)),
+                       ("2024-06-03 (two years back)", datetime(2024, 6, 3, 12, tzinfo=timezone.utc))):
+        probes.append((label + " 20 min", day, day + timedelta(minutes=20)))
     probes.append(("March 2026 7 days", WINDOWS[0][1], WINDOWS[0][1] + timedelta(days=7)))
     probes.append(("2026-10-20 6h (recent control)", datetime(2026, 10, 20, 12, tzinfo=timezone.utc),
                    datetime(2026, 10, 20, 18, tzinfo=timezone.utc)))
