@@ -10,14 +10,16 @@ that mattered carry their text.
 
 from __future__ import annotations
 
-import base64
 import json
+import os
 import sys
 
 from src import rules, sheets
 from src.outcomes import to_float, parse_utc
 from src.sheets import SIGNALS
 from scripts.replay import replay, calendar_only
+
+OUT_DIR = "backup"
 
 
 def trim(text, limit=320):
@@ -78,12 +80,17 @@ def main() -> int:
         "open": {"side": open_position.side, "entry": open_position.entry_price}
         if open_position.is_open else None,
     }
-    # GitHub's log API replaces braces with ***, which destroys JSON on the
-    # way out. Base64 has no braces and survives intact.
-    payload = json.dumps(out, separators=(",", ":")).encode("utf-8")
-    print("===B64===")
-    print(base64.b64encode(payload).decode("ascii"))
-    print("===END===")
+    # Written to a file, not printed: GitHub's log API both replaces braces
+    # with asterisks and truncates long lines, so nothing structured survives
+    # a round trip through it. The file is committed with the backups, which
+    # makes it durable and readable without running anything.
+    os.makedirs(OUT_DIR, exist_ok=True)
+    path = os.path.join(OUT_DIR, "trade_story.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(out, handle, indent=1, sort_keys=True)
+        handle.write("\n")
+    print("wrote %s: %d prices, %d trades, %d control trades"
+          % (path, len(out["prices"]), len(out["trades"]), len(out["control"])))
     return 0
 
 
