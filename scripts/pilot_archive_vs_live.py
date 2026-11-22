@@ -41,8 +41,9 @@ MAX_ROWS = 56
 START, END = "2026-09-28", "2026-10-16"
 KEEP_HEADLINES = 40
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
-GDELT_SPACING = 7.0
-RETRY_PAUSES = (15, 30, 60, 90)
+GDELT_SPACING = 12.0   # the brief asks for >= 7s; GDELT from the runner is heavily throttled
+RETRY_PAUSES = (30, 60, 120, 240)
+MAX_RUNTIME_MINUTES = 310  # stop starting new rows after this; re-dispatch resumes from the CSV
 
 CSV_PATH = os.path.join("backtest", "pilot_archive_vs_live.csv")
 TXT_PATH = os.path.join("backtest", "pilot_archive_vs_live.txt")
@@ -346,11 +347,15 @@ def run(limit: int) -> int:
         len(sample), sum(1 for v in done.values() if v["status"] in ("ok", "no_archive")), cap.used, cap.max_calls))
     client = None
     processed = 0
+    t0 = time.time()
     for row in sample:
         key = row["run_utc"]
         if done.get(key, {}).get("status") in ("ok", "no_archive"):
             continue
         if limit and processed >= limit:
+            break
+        if time.time() - t0 > MAX_RUNTIME_MINUTES * 60:
+            print("runtime budget reached, stopping; re-dispatch to resume")
             break
         processed += 1
         run_dt = datetime.fromisoformat(key)
