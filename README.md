@@ -4,8 +4,9 @@ A four week **log only** experiment. On each run it reads oil related news, scor
 it with Claude, records a buy / sell / hold / flat decision against locked rules,
 and logs the Brent price. Everything lands in a Google Sheet.
 
-**There is no broker connection and no real trading.** Positions are paper rows
-in a spreadsheet. The point is to find out, after four weeks, whether the signals
+**There is no real money trading.** Positions are paper rows in a spreadsheet.
+They can optionally be mirrored onto an IG demo account with fake money (see
+[IG demo mirror](#ig-demo-mirror)), off by default. The point is to find out, after four weeks, whether the signals
 had any predictive value against what the price actually did.
 
 ---
@@ -249,3 +250,38 @@ every row.
 ## Out of scope
 
 No broker connection. No eToro. No real orders. No rule changes mid test.
+
+
+---
+
+## IG demo mirror
+
+Optional. Copies each paper trade onto an IG **demo** account (fake money, real
+prices) so you can see real fills. There is no live mode in the code.
+
+How it behaves:
+
+* Opens only on the run where the paper rules enter. A missed entry is not chased.
+* Closes whatever is open on the market whenever the paper position is flat or flips.
+* Reads IG's open positions first every run, so a rerun never doubles up and a
+  failed close is retried next run.
+* Puts a stop at IG 5% from entry (`BROKER_STOP_PCT`), a backstop for the hours
+  between runs. The paper 3% trailing stop normally exits first.
+* Stake is capped at `BROKER_MAX_SIZE` per point.
+* Any IG error is written to the `notes` column. It never fails the run.
+
+Setup:
+
+1. Open an IG demo account at ig.com, then in My IG go to **Settings → API keys**
+   and create a **demo** key.
+2. In GitHub: **Settings → Secrets and variables → Actions → Secrets**, add
+   `IG_API_KEY`, `IG_USERNAME`, `IG_PASSWORD`. Add `IG_ACCOUNT_ID` only if the
+   demo has more than one account (spread bet and CFD).
+3. Run the **ig_check** workflow from the Actions tab. It logs in and lists Brent
+   markets with their epics. It places no orders.
+4. Under **Variables**, add `IG_EPIC` (from step 3), `IG_EXPIRY` (`DFB` for a
+   spread bet, `-` for a CFD, as ig_check shows), and `IG_SIZE` (stake per point,
+   start at `1`).
+5. Add the variable `BROKER_MODE` = `demo`. That switches it on.
+
+To switch it off, delete `BROKER_MODE` or set it to `off`.

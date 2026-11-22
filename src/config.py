@@ -90,6 +90,17 @@ TRAILING_STOP_PCT = 3.0
 SPREAD_USD_PER_BBL = 0.05
 POSITION_SIZE_UNITS = 1
 
+# --------------------------------------------------------------- broker ----
+# Optional mirror of the paper position onto an IG demo account (src/broker.py).
+# Off unless BROKER_MODE=demo. None of this changes the paper rules above.
+#
+# The stop held at IG is a backstop for the hours between runs, not a rule.
+# It is wider than the 3% trailing stop so the paper rules normally exit first
+# and the demo account tracks the paper trades.
+BROKER_STOP_PCT = 5.0
+# Hard ceiling on IG_SIZE, the stake per point.
+BROKER_MAX_SIZE = 5
+
 # ------------------------------------------------------------- outcomes ----
 CONTEXT_SIGNAL_ROWS = 24
 OUTCOME_HORIZONS_HOURS = {"1h": 1, "4h": 4, "24h": 24, "72h": 72}

@@ -49,6 +49,16 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
+          # IG demo mirror (fake money). Off unless the BROKER_MODE repository
+          # variable is set to demo. Delete that variable to switch it off.
+          BROKER_MODE: ${{ vars.BROKER_MODE }}
+          IG_API_KEY: ${{ secrets.IG_API_KEY }}
+          IG_USERNAME: ${{ secrets.IG_USERNAME }}
+          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
+          IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+          IG_EPIC: ${{ vars.IG_EPIC }}
+          IG_EXPIRY: ${{ vars.IG_EXPIRY }}
+          IG_SIZE: ${{ vars.IG_SIZE }}
         run: |
           # A hand started run is normally meant, so it defaults to skipping
           # the gap guard. Setting force=false is how the guard itself gets

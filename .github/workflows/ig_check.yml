@@ -1,0 +1,35 @@
+name: ig_check
+
+# Hand started only. Logs in to the IG demo account and lists matching markets
+# with their epics. Places no orders.
+
+on:
+  workflow_dispatch:
+    inputs:
+      search:
+        description: "Market search term"
+        default: "Brent"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check IG demo
+        env:
+          IG_API_KEY: ${{ secrets.IG_API_KEY }}
+          IG_USERNAME: ${{ secrets.IG_USERNAME }}
+          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
+          IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+          SEARCH: ${{ inputs.search }}
+        run: python -m scripts.ig_check "$SEARCH"
