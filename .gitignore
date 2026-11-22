@@ -5,4 +5,8 @@ venv/
 .env
 *.json
 !.github/**/*.json
+# One named, generated file. The blanket *.json rule above is what stops the
+# service account key being committed, so this stays an allowlist of exactly
+# one path rather than an exception for the backup folder.
+!backup/trade_story.json
 .pytest_cache/
