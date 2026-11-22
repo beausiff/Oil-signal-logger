@@ -1,24 +1,23 @@
-"""Mirror the paper position onto an IG demo account.
+"""Mirror the paper position onto an OANDA practice (demo) account.
 
-Off unless BROKER_MODE=demo. There is no live mode: pointing this at real
+Off unless BROKER_MODE=demo. There is no live mode: the practice server URL is
+fixed below, and a live token is refused by that server. Pointing this at real
 money needs a code change, on purpose.
 
 The broker is the source of truth for what is actually open, so every call
-starts by reading IG's open positions on the epic. That makes a rerun safe: it
-never opens a second position, and a close that failed last hour is retried
-this hour.
+starts by reading OANDA's open trades on the instrument. That makes a rerun
+safe: it never opens a second position, and a close that failed last hour is
+retried this hour.
 
 Nothing in here may fail the hourly run. Every error becomes a note.
 
 Environment:
-    BROKER_MODE    off (default) | demo
-    IG_API_KEY     demo API key from My IG > Settings > API keys
-    IG_USERNAME    demo login
-    IG_PASSWORD    demo password
-    IG_ACCOUNT_ID  optional, which demo account to trade on
-    IG_EPIC        the market, e.g. found with the ig_check workflow
-    IG_EXPIRY      DFB for a daily funded spread bet, "-" for a CFD
-    IG_SIZE        stake per point, capped at config.BROKER_MAX_SIZE
+    BROKER_MODE       off (default) | demo
+    OANDA_API_TOKEN   personal access token from the OANDA hub (practice)
+    OANDA_ACCOUNT_ID  e.g. 101-004-12345678-001, shown on the hub dashboard
+    OANDA_INSTRUMENT  the market, default BCO_USD (Brent). See oanda_check.
+    OANDA_UNITS       units per trade (barrels for BCO_USD), capped at
+                      config.BROKER_MAX_UNITS
 """
 
 from __future__ import annotations
@@ -31,7 +30,8 @@ import requests
 
 from . import config
 
-DEMO_URL = "https://demo-api.ig.com/gateway/deal"
+PRACTICE_URL = "https://api-fxpractice.oanda.com/v3"
+DEFAULT_INSTRUMENT = "BCO_USD"
 
 
 class BrokerError(Exception):
@@ -45,36 +45,29 @@ def mode() -> str:
 
 @dataclass
 class OpenPosition:
-    deal_id: str
+    deal_id: str  # OANDA trade id
     side: str  # long | short
-    size: float
+    size: float  # units, always positive
 
 
-class IG:
-    """The handful of IG REST calls this needs, nothing more."""
+class Oanda:
+    """The handful of OANDA v20 REST calls this needs, nothing more."""
 
-    def __init__(self, http=None, base_url: str = DEMO_URL):
+    def __init__(self, http=None, base_url: str = PRACTICE_URL):
         self.http = http or requests.Session()
         self.base = base_url
-        self.api_key = os.environ.get("IG_API_KEY", "")
-        self.tokens: dict = {}
+        self.token = (os.environ.get("OANDA_API_TOKEN") or "").strip()
+        self.account = (os.environ.get("OANDA_ACCOUNT_ID") or "").strip()
 
-    def _headers(self, version: int, extra: Optional[dict] = None) -> dict:
-        headers = {
-            "X-IG-API-KEY": self.api_key,
-            "Content-Type": "application/json; charset=UTF-8",
-            "Accept": "application/json; charset=UTF-8",
-            "Version": str(version),
-        }
-        headers.update(self.tokens)
-        if extra:
-            headers.update(extra)
-        return headers
-
-    def _call(self, method: str, path: str, version: int, body=None, extra=None) -> dict:
+    def _call(self, method: str, path: str, body=None) -> dict:
         resp = self.http.request(
-            method, self.base + path, json=body,
-            headers=self._headers(version, extra), timeout=config.HTTP_TIMEOUT_SECONDS,
+            method, "%s/accounts/%s%s" % (self.base, self.account, path), json=body,
+            headers={
+                "Authorization": "Bearer %s" % self.token,
+                "Content-Type": "application/json",
+                "Accept-Datetime-Format": "RFC3339",
+            },
+            timeout=config.HTTP_TIMEOUT_SECONDS,
         )
         if resp.status_code >= 400:
             raise BrokerError("%s %s -> %s %s" % (method, path, resp.status_code, resp.text[:200]))
@@ -84,123 +77,115 @@ class IG:
             return {}
 
     def login(self) -> None:
-        username = os.environ.get("IG_USERNAME", "")
-        password = os.environ.get("IG_PASSWORD", "")
-        if not (self.api_key and username and password):
-            raise BrokerError("missing IG_API_KEY, IG_USERNAME or IG_PASSWORD")
-        resp = self.http.request(
-            "POST", self.base + "/session",
-            json={"identifier": username, "password": password},
-            headers=self._headers(2), timeout=config.HTTP_TIMEOUT_SECONDS,
-        )
-        if resp.status_code >= 400:
-            raise BrokerError("login -> %s %s" % (resp.status_code, resp.text[:200]))
-        self.tokens = {
-            "CST": resp.headers.get("CST", ""),
-            "X-SECURITY-TOKEN": resp.headers.get("X-SECURITY-TOKEN", ""),
-        }
-        wanted = (os.environ.get("IG_ACCOUNT_ID") or "").strip()
-        current = (resp.json() or {}).get("currentAccountId", "")
-        if wanted and wanted != current:
-            self._call("PUT", "/session", 1, {"accountId": wanted, "defaultAccount": False})
+        """No session to open; check the settings and that the account answers."""
+        if not (self.token and self.account):
+            raise BrokerError("missing OANDA_API_TOKEN or OANDA_ACCOUNT_ID")
+        self._call("GET", "/summary")
 
-    def positions(self, epic: str) -> List[OpenPosition]:
-        data = self._call("GET", "/positions", 2)
+    def positions(self, instrument: str) -> List[OpenPosition]:
+        data = self._call("GET", "/openTrades")
         out = []
-        for item in data.get("positions", []):
-            if (item.get("market") or {}).get("epic") != epic:
+        for trade in data.get("trades", []):
+            if trade.get("instrument") != instrument:
                 continue
-            pos = item.get("position") or {}
+            units = float(trade.get("currentUnits") or 0)
+            if units == 0:
+                continue
             out.append(OpenPosition(
-                deal_id=pos.get("dealId", ""),
-                side="long" if pos.get("direction") == "BUY" else "short",
-                size=float(pos.get("size") or 0),
+                deal_id=str(trade.get("id", "")),
+                side="long" if units > 0 else "short",
+                size=abs(units),
             ))
         return out
 
-    def market(self, epic: str) -> dict:
-        return self._call("GET", "/markets/%s" % epic, 3)
+    def instruments(self, names: Optional[str] = None) -> list:
+        path = "/instruments" + ("?instruments=%s" % names if names else "")
+        return self._call("GET", path).get("instruments", [])
 
-    def confirm(self, deal_reference: str) -> dict:
-        data = self._call("GET", "/confirms/%s" % deal_reference, 1)
-        if data.get("dealStatus") != "ACCEPTED":
-            raise BrokerError("rejected: %s" % data.get("reason", "unknown"))
-        return data
+    def quote(self, instrument: str) -> dict:
+        prices = self._call("GET", "/pricing?instruments=%s" % instrument).get("prices", [])
+        if not prices:
+            raise BrokerError("no OANDA quote for %s" % instrument)
+        price = prices[0]
+        if price.get("tradeable") is False:
+            raise BrokerError("%s not tradeable now" % instrument)
+        try:
+            return {"bid": float(price["bids"][0]["price"]), "ask": float(price["asks"][0]["price"])}
+        except (KeyError, IndexError, ValueError, TypeError):
+            raise BrokerError("no OANDA quote for %s" % instrument)
 
-    def open(self, epic: str, expiry: str, side: str, size: float) -> dict:
-        info = self.market(epic)
-        snap = info.get("snapshot") or {}
-        bid, offer = snap.get("bid"), snap.get("offer")
-        if bid is None or offer is None:
-            raise BrokerError("no IG quote for %s" % epic)
+    @staticmethod
+    def _filled(data: dict) -> dict:
+        fill = data.get("orderFillTransaction")
+        if not fill:
+            cancel = data.get("orderCancelTransaction") or data.get("orderRejectTransaction") or {}
+            raise BrokerError("rejected: %s" % (cancel.get("reason") or cancel.get("rejectReason") or "unknown"))
+        return fill
+
+    def open(self, instrument: str, side: str, units: float) -> dict:
+        quote = self.quote(instrument)
+        info = self.instruments(instrument)
+        precision = int((info[0] if info else {}).get("displayPrecision", 3))
         band = config.BROKER_STOP_PCT / 100.0
-        stop = bid * (1 - band) if side == "long" else offer * (1 + band)
-        currencies = (info.get("instrument") or {}).get("currencies") or []
-        currency = next((c.get("code") for c in currencies if c.get("isDefault")), None)
-        currency = currency or (currencies[0].get("code") if currencies else "GBP")
-        ref = self._call("POST", "/positions/otc", 2, {
-            "epic": epic,
-            "expiry": expiry,
-            "direction": "BUY" if side == "long" else "SELL",
-            "size": size,
-            "orderType": "MARKET",
-            "currencyCode": currency,
-            "forceOpen": True,
-            "guaranteedStop": False,
-            "stopLevel": round(stop, 1),
-        })
-        return self.confirm(ref["dealReference"])
+        stop = quote["bid"] * (1 - band) if side == "long" else quote["ask"] * (1 + band)
+        signed = units if side == "long" else -units
+        fill = self._filled(self._call("POST", "/orders", {"order": {
+            "type": "MARKET",
+            "instrument": instrument,
+            "units": _units_str(signed),
+            "timeInForce": "FOK",
+            "positionFill": "OPEN_ONLY",
+            "stopLossOnFill": {"price": "%.*f" % (precision, stop), "timeInForce": "GTC"},
+        }}))
+        trade_id = (fill.get("tradeOpened") or {}).get("tradeID", "")
+        return {"dealId": trade_id, "level": fill.get("price")}
 
     def close(self, position: OpenPosition) -> dict:
-        ref = self._call("POST", "/positions/otc", 1, {
-            "dealId": position.deal_id,
-            "direction": "SELL" if position.side == "long" else "BUY",
-            "size": position.size,
-            "orderType": "MARKET",
-        }, extra={"_method": "DELETE"})
-        return self.confirm(ref["dealReference"])
+        fill = self._filled(self._call("PUT", "/trades/%s/close" % position.deal_id, {"units": "ALL"}))
+        return {"dealId": position.deal_id, "level": fill.get("price")}
+
+
+def _units_str(units: float) -> str:
+    return str(int(units)) if float(units).is_integer() else str(units)
 
 
 def stake() -> float:
     try:
-        size = float(os.environ.get("IG_SIZE") or 1)
+        units = float(os.environ.get("OANDA_UNITS") or 1)
     except ValueError:
-        raise BrokerError("IG_SIZE is not a number")
-    if size <= 0 or size > config.BROKER_MAX_SIZE:
-        raise BrokerError("IG_SIZE %s outside 0 to %s" % (size, config.BROKER_MAX_SIZE))
-    return size
+        raise BrokerError("OANDA_UNITS is not a number")
+    if units <= 0 or units > config.BROKER_MAX_UNITS:
+        raise BrokerError("OANDA_UNITS %s outside 0 to %s" % (units, config.BROKER_MAX_UNITS))
+    return units
 
 
-def sync(desired: str, allow_open: bool, ig: Optional[IG] = None) -> str:
-    """Make IG match the paper position and return a note for the signals row.
+def sync(desired: str, allow_open: bool, client: Optional[Oanda] = None) -> str:
+    """Make OANDA match the paper position and return a note for the signals row.
 
-    Closes anything on the epic that disagrees with `desired`. Opens only when
-    the paper rules just entered (`allow_open`), so a missed entry is never
+    Closes anything on the instrument that disagrees with `desired`. Opens only
+    when the paper rules just entered (`allow_open`), so a missed entry is never
     chased at a worse price later.
     """
     if mode() == "off":
         return ""
-    tag = "ig_demo"
+    tag = "oanda_demo"
     try:
-        epic = (os.environ.get("IG_EPIC") or "").strip()
-        if not epic:
-            raise BrokerError("IG_EPIC not set")
-        expiry = (os.environ.get("IG_EXPIRY") or "DFB").strip()
-        ig = ig or IG()
-        ig.login()
+        instrument = (os.environ.get("OANDA_INSTRUMENT") or DEFAULT_INSTRUMENT).strip()
+        client = client or Oanda()
+        client.login()
 
         done = []
         remaining = []
-        for pos in ig.positions(epic):
+        for pos in client.positions(instrument):
             if pos.side == desired:
                 remaining.append(pos)
                 continue
-            result = ig.close(pos)
+            result = client.close(pos)
             done.append("closed:%s@%s" % (pos.deal_id, result.get("level")))
 
         if desired in ("long", "short") and not remaining:
             if allow_open:
-                result = ig.open(epic, expiry, desired, stake())
+                result = client.open(instrument, desired, stake())
                 done.append("opened:%s:%s@%s" % (desired, result.get("dealId"), result.get("level")))
             else:
                 done.append("out_of_sync_no_position")
