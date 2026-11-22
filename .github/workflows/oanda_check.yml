@@ -1,7 +1,7 @@
-name: ig_check
+name: oanda_check
 
-# Hand started only. Logs in to the IG demo account and lists matching markets
-# with their epics. Places no orders.
+# Hand started only. Logs in to the OANDA practice account and lists matching
+# markets. Places no orders.
 
 on:
   workflow_dispatch:
@@ -25,11 +25,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check IG demo
+      - name: Check OANDA practice
         env:
-          IG_API_KEY: ${{ secrets.IG_API_KEY }}
-          IG_USERNAME: ${{ secrets.IG_USERNAME }}
-          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
-          IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+          OANDA_API_TOKEN: ${{ secrets.OANDA_API_TOKEN }}
+          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
           SEARCH: ${{ inputs.search }}
-        run: python -m scripts.ig_check "$SEARCH"
+        run: python -m scripts.oanda_check "$SEARCH"
