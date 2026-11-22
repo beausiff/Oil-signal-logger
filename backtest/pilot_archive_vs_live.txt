@@ -3,25 +3,37 @@ Rule (fixed before running): GOOD ENOUGH = Pearson r >= 0.60 AND >= 70% of pairs
 Context: model test-retest on identical headlines (measured earlier): r = 0.976, 83% identical, 97% within one point. The pilot cannot beat that; it shows the loss from swapping the headline source.
 
 rows sampled (rows in the sample): 56
-rows skipped for GDELT failure: 2
-rows with no archive headlines after filtering: 0
+rows skipped for GDELT failure: 18
+rows with no archive headlines after filtering: 24
 rows not scored for model failure or spend cap: 0
-rows not yet processed: 53
-pairs scored: 1
-Pearson r (archive vs live): n/a
+rows not yet processed: 0
+pairs scored: 14
+Pearson r (archive vs live): 0.483
 circular shift p: n/a (needs n >= 30)
-mean absolute difference: 0.00 points
-identical: 100%   within 1: 100%   within 2: 100%
-mean live score +1.00, mean archive score +1.00 (archive minus live +0.00: no clear systematic shift)
-live |score| >= 4: 0 pairs, archive on the same side with |score| >= 4: 0
-average headlines: live 13.0, archive after filtering 40.0
-average title overlap (share of live titles with a >=60% Jaccard archive match): 8%
+mean absolute difference: 1.64 points
+identical: 14%   within 1: 43%   within 2: 86%
+mean live score +1.29, mean archive score +1.50 (archive minus live +0.21: no clear systematic shift)
+live |score| >= 4: 1 pairs, archive on the same side with |score| >= 4: 1
+average headlines: live 15.1, archive after filtering 30.5
+average title overlap (share of live titles with a >=60% Jaccard archive match): 14%
 
-VERDICT: NO VERDICT (too few pairs or undefined r)
+VERDICT: BORDERLINE
 
-total model requests counted against the cap: 1 of 60   model spend (scorer usage cost): $0.0125
+total model requests counted against the cap: 14 of 60   model spend (scorer usage cost): $0.1586
 
 == 5 example rows (evenly spaced through the pairs, not cherry picked) ==
 2026-09-28T07:01  live +1 (low)  archive +1 (low)  overlap 0.077
   live:    Tullow Oil swings to positive free cash flow as Ghana output, higher oil prices drive growth | European Gas Steadies as Traders Eye Mixed Signals on Iran | Treasury Yields Rise Amid U.S.-Iran Diplomatic Stalemate
   archive: Oil prices spike after Trump rejects Iran truce offer | Xi visit, Iran war test Trump foreign policy | New Jersey Republican Tom Kean Jr. and Democrat Rebecca Bennett clash over war in Iran, tariffs
+2026-09-29T08:38  live +1 (low)  archive +0 (low)  overlap 0.105
+  live:    FTAI unit to acquire USDG crude oil logistics assets for $255m | US-Iran talks continue, but ‘deal unlikely’ before midterm elections | Major Gulf stocks trade mixed after renewed US-Iran peace talks
+  archive: The road ahead: How to invest amid macro uncertainty as oil on boil, Indian economy under heat of weak monsoon too? | Qatar Islamic Bank Funds Nigeria Oil Push to 100, 000 bpd | HOAX: Trump denies report of offering Iran sanctions relief
+2026-09-30T06:48  live +0 (low)  archive +2 (medium)  overlap 0.167
+  live:    Iran receives US feedback on seven-day trust-building plan, official says | Castor Oil for Health: Benefits, Uses, Side Effects, and Safety - News-Medical | Watch Bassiri Tabrizi: US Iran Moving Further Apart in Talks
+  archive: US officials expect Trump to resume major Iran war after midterms | Azerbaijan digital investment surges as its non-oil economy seeks new growth | Oil Prices Climb as Trump Rules Out Easing Iran Sanctions
+2026-10-01T19:35  live +3 (medium)  archive +5 (medium)  overlap 0.231
+  live:    US to send 3rd carrier strike group to Middle East as Iran tensions rise: Report | 46 States Condemn Iran’s Escalating Use of the Death Penalty at UN Human Rights Council | Trump says Iran may be linked to FlyDubai copilot who tried to crash Israel-bound jet
+  archive: Tacoma Buyer Says an Oil Change Revealed Apparent Crossmember Welding Eight Months After Carvana Sale | Finance ministry sees Q2 FY27 GDP growth at 7. 3%, flags trade, crude and AI risks | Trump says Iran may be linked to FlyDubai copilot who tried to crash Israel-bound jet
+2026-10-16T07:16  live +1 (low)  archive +3 (medium)  overlap 0.300
+  live:    Oil Prices Fall as Traders Weigh IEA Reserve Releases, Hormuz Risks | The $100 question: Which way will crude oil break? | Major U.S. strikes against Iran before midterms ‘extremely unlikely’: Analyst
+  archive: Indian Airlines Extend Saudi Flight Suspensions Amid Riyadh Disruptions | US Prepares Plans to Use Mother of All Bomb Against Iran, Reports Say | Iran News in Brief – October 16, 2026
