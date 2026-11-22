@@ -10,6 +10,7 @@ that mattered carry their text.
 
 from __future__ import annotations
 
+import base64
 import json
 import sys
 
@@ -77,8 +78,12 @@ def main() -> int:
         "open": {"side": open_position.side, "entry": open_position.entry_price}
         if open_position.is_open else None,
     }
-    print("===JSON===")
-    print(json.dumps(out, separators=(",", ":")))
+    # GitHub's log API replaces braces with ***, which destroys JSON on the
+    # way out. Base64 has no braces and survives intact.
+    payload = json.dumps(out, separators=(",", ":")).encode("utf-8")
+    print("===B64===")
+    print(base64.b64encode(payload).decode("ascii"))
+    print("===END===")
     return 0
 
 
