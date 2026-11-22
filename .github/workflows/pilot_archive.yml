@@ -1,0 +1,53 @@
+name: pilot_archive
+
+# Pilot: rebuild the news window of already logged live runs from the GDELT
+# archive, score it with the live scorer, compare with the live score. Hard cap
+# of 60 model requests in total, counted in backtest/pilot_calls_used.txt.
+# Commits the result files. Manual only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Process at most N new rows (0 = the rest of the sample)"
+        type: string
+        default: "3"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oil-signal-logger
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run the pilot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+        run: python -m scripts.pilot_archive_vs_live --limit ${{ inputs.limit }}
+      # Runs even if the pilot fails part way, so the call counter and any rows
+      # done so far are never lost.
+      - name: Commit the results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backtest/pilot_archive_vs_live.txt backtest/pilot_archive_vs_live.csv backtest/pilot_calls_used.txt
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "Pilot results: archive versus live headlines"
+            git pull --rebase -q origin main || true
+            git push
+          fi
