@@ -1,0 +1,27 @@
+PILOT: GDELT archive headlines versus the live Google News feed
+Rule (fixed before running): GOOD ENOUGH = Pearson r >= 0.60 AND >= 70% of pairs within 2 points; NOT GOOD ENOUGH = r < 0.40; BORDERLINE = anything else.
+Context: model test-retest on identical headlines (measured earlier): r = 0.976, 83% identical, 97% within one point. The pilot cannot beat that; it shows the loss from swapping the headline source.
+
+rows sampled (rows in the sample): 56
+rows skipped for GDELT failure: 2
+rows with no archive headlines after filtering: 0
+rows not scored for model failure or spend cap: 0
+rows not yet processed: 53
+pairs scored: 1
+Pearson r (archive vs live): n/a
+circular shift p: n/a (needs n >= 30)
+mean absolute difference: 0.00 points
+identical: 100%   within 1: 100%   within 2: 100%
+mean live score +1.00, mean archive score +1.00 (archive minus live +0.00: no clear systematic shift)
+live |score| >= 4: 0 pairs, archive on the same side with |score| >= 4: 0
+average headlines: live 13.0, archive after filtering 40.0
+average title overlap (share of live titles with a >=60% Jaccard archive match): 8%
+
+VERDICT: NO VERDICT (too few pairs or undefined r)
+
+total model requests counted against the cap: 1 of 60   model spend (scorer usage cost): $0.0125
+
+== 5 example rows (evenly spaced through the pairs, not cherry picked) ==
+2026-09-28T07:01  live +1 (low)  archive +1 (low)  overlap 0.077
+  live:    Tullow Oil swings to positive free cash flow as Ghana output, higher oil prices drive growth | European Gas Steadies as Traders Eye Mixed Signals on Iran | Treasury Yields Rise Amid U.S.-Iran Diplomatic Stalemate
+  archive: Oil prices spike after Trump rejects Iran truce offer | Xi visit, Iran war test Trump foreign policy | New Jersey Republican Tom Kean Jr. and Democrat Rebecca Bennett clash over war in Iran, tariffs
