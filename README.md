@@ -162,12 +162,12 @@ From `v2` the news window covers everything published since the previous run
 last 90 minutes, so rows are not comparable with `v1.x` on input. Six bots race
 on the same logged scores and prices and differ only in their rules:
 
-1. **Original**: the locked rules.
-2. **Hold longer**: the locked rules without the reversal exit.
-3. **Lower bar**: enters at a score of +/-4 instead of +/-6.
-4. **Lower bar + hold longer**: both changes.
-5. **Calendar only**: long each week, out by Friday, reads no news.
-6. **Opposite**: the locked rules on negated scores, so it shorts where the original buys.
+1. **Bot 1: Original**: the locked rules.
+2. **Bot 2: Hold longer**: the locked rules without the reversal exit.
+3. **Bot 3: Lower bar**: enters at a score of +/-4 instead of +/-6.
+4. **Bot 4: Lower bar + hold longer**: both changes.
+5. **Bot 5: Calendar only**: long each week, out by Friday, reads no news.
+6. **Bot 6: Opposite**: the locked rules on negated scores, so it shorts where the original buys.
 
 The sheet's `state` and `trades` tabs are bot 1. The others are replays of the
 same logged scores (`scripts/leaderboard.py`), so there is no extra live state.

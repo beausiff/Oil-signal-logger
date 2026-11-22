@@ -37,13 +37,13 @@ MIN_ROWS_FOR_LUCK = 60
 # Registered on 2026-11-22. Must not be edited during the race: changing a bot
 # afterwards would mean it was chosen with the results in view.
 BOTS = [
-    {"key": "original", "label": "Original", "variant": {}},
-    {"key": "hold_longer", "label": "Hold longer", "variant": {"use_reversal": False}},
-    {"key": "lower_bar", "label": "Lower bar", "variant": {"entry": 4}},
-    {"key": "lower_bar_hold", "label": "Lower bar + hold longer",
+    {"key": "original", "label": "Bot 1: Original", "variant": {}},
+    {"key": "hold_longer", "label": "Bot 2: Hold longer", "variant": {"use_reversal": False}},
+    {"key": "lower_bar", "label": "Bot 3: Lower bar", "variant": {"entry": 4}},
+    {"key": "lower_bar_hold", "label": "Bot 4: Lower bar + hold longer",
      "variant": {"entry": 4, "use_reversal": False}},
-    {"key": "calendar", "label": "Calendar only", "calendar": True},   # reads no news
-    {"key": "opposite", "label": "Opposite", "variant": {}, "negate": True},
+    {"key": "calendar", "label": "Bot 5: Calendar only", "calendar": True},   # reads no news
+    {"key": "opposite", "label": "Bot 6: Opposite", "variant": {}, "negate": True},
 ]
 
 
@@ -192,10 +192,10 @@ def write_tab(client, table: dict, updated_utc: Optional[str] = None) -> None:
 
 def print_table(table: dict) -> None:
     print("race started %s, %d race rows" % (table["race_start"], table["race_rows"]))
-    print("\n  %-4s %-26s %6s %8s %12s %9s %10s  %-26s %s"
+    print("\n  %-4s %-32s %6s %8s %12s %9s %10s  %-26s %s"
           % ("rank", "bot", "trades", "winners", "total $/bbl", "total %", "worst $", "open", "luck p"))
     for rank, bot in enumerate(ranked(table), start=1):
-        print("  %-4d %-26s %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s"
+        print("  %-4d %-32s %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s"
               % (rank, bot["label"], bot["trades"], bot["winners"], bot["total_usd"],
                  bot["total_pct"], bot["worst_usd"], _open_text(bot), _luck_text(bot)))
     b = table["benchmark"]
