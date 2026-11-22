@@ -16,8 +16,10 @@ on:
 permissions:
   contents: write
 
+# Own queue. Sharing the hourly job's group made this long pilot hold up the
+# hourly run, so the race lost data while it waited.
 concurrency:
-  group: oil-signal-logger
+  group: oil-pilot
   cancel-in-progress: false
 
 jobs:
