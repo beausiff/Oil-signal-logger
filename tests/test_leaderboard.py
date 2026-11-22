@@ -104,8 +104,9 @@ def test_the_tab_layout():
                           updated_utc="2026-11-24T00:00:00+00:00")
     rows = client.tables["leaderboard"]
     assert rows[0][0] == "rank" and rows[1][0] == 1
-    totals = [r[4] for r in rows[1:7]]
-    assert totals == sorted(totals, reverse=True)
+    assert rows[0][2] == "$100 is now"
+    balances = [r[2] for r in rows[1:7]]
+    assert balances == sorted(balances, reverse=True)
     assert rows[7] == []
     assert rows[8][0] == "benchmark"
     assert rows[9] == ["updated_utc", "2026-11-24T00:00:00+00:00"]
@@ -131,3 +132,47 @@ def test_a_normal_run_writes_the_leaderboard_tab(wired, monkeypatch):  # noqa: F
     wire_score(monkeypatch, 2, "low")
     main.run()
     assert "leaderboard" in wired.tables
+
+
+# ------------------------------------------------------- the $100 balance --
+
+def test_balance_compounds_the_trades_own_pnl_pct():
+    trades = [{"pnl_pct": 10.0}, {"pnl_pct": -10.0}]
+    assert leaderboard.compound(trades) == pytest.approx(99.0, abs=0.01)
+    table = leaderboard.standings(long_week(reversal=True))
+    bot = by_key(table)["original"]
+    real_trades, _ = leaderboard.run_bot(leaderboard.BOTS[0], leaderboard.race_rows(long_week(reversal=True)))
+    expected = 100.0
+    for t in real_trades:
+        expected *= 1 + t["pnl_pct"] / 100.0
+    assert bot["balance"] == pytest.approx(expected, abs=0.01)
+    assert bot["balance_now"] == pytest.approx(expected, abs=0.01)
+
+
+def open_long_rows():
+    """Bought at 100 on Monday, no exit yet, last price 105."""
+    return [v2(scored(chi_row(2026, 9, 14, 10, 100.0), 7)), v2(chi_row(2026, 9, 14, 12, 105.0))]
+
+
+def test_an_open_position_marks_to_market_in_balance_now_but_not_balance():
+    bot = by_key(leaderboard.standings(open_long_rows()))["original"]
+    assert bot["open"] is not None
+    assert bot["balance"] == 100.0
+    pnl_pct = rules.pnl("long", 100.0, 105.0)[1]
+    assert bot["balance_now"] == pytest.approx(100.0 * (1 + pnl_pct / 100.0), abs=0.01)
+    assert bot["balance_now"] > 104
+
+
+def test_benchmark_balance_is_100_times_last_over_first():
+    rows = [v2(chi_row(2026, 9, 14, 10, 100.0)), v2(chi_row(2026, 9, 15, 10, 110.0)),
+            v2(chi_row(2026, 9, 16, 10, 95.0))]
+    assert leaderboard.standings(rows)["benchmark"]["balance_now"] == pytest.approx(95.0)
+
+
+def test_ranked_orders_by_balance_now_with_ties_in_bot_number_order():
+    flat = leaderboard.standings([v2(chi_row(2026, 9, 14, 10, 100.0)), v2(chi_row(2026, 9, 14, 11, 100.0))])
+    even = {"bots": [dict(b, balance_now=100.0) for b in flat["bots"]]}
+    assert [b["key"] for b in leaderboard.ranked(even)] == [b["key"] for b in leaderboard.BOTS]
+    table = {"bots": [dict(b, balance_now=v) for b, v in zip(flat["bots"], (100, 90, 120, 100, 100, 100))]}
+    order = [b["key"] for b in leaderboard.ranked(table)]
+    assert order == ["lower_bar", "original", "lower_bar_hold", "calendar", "opposite", "hold_longer"]

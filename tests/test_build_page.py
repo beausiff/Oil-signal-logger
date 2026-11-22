@@ -78,7 +78,21 @@ def test_simulate_flag_is_marked_and_default_is_not():
     assert "has not started" in build_page.build(rows)
 
 
-def test_numbers_are_computed_from_rows():
+def test_balance_wording_and_no_per_barrel_in_scoreboard_cards_or_archive_table():
     page = build_page.build(ARCHIVE + RACE)
-    assert "+$3.00" in section(page, "bots") or "+$2.95" in section(page, "bots")
-    assert not re.search(r"\bdatetime\b", page)
+    assert "$100 is now" in section(page, "scoreboard")
+    bots = section(page, "bots")
+    assert bots.count("$100 is now") == 6
+    archive = section(page, "archive")
+    table = archive[archive.index("<table>"):archive.index("</table>")]
+    for text in (section(page, "scoreboard"), bots, table):
+        assert "per barrel" not in text
+    assert "$100 became" in table
+    assert "Profit per barrel" not in page
+
+
+def test_negative_money_has_the_minus_before_the_dollar_sign():
+    assert build_page.money(-3.2) == "\u2212$3.20"
+    assert build_page.money(-3.2, signed=False) == "\u2212$3.20"
+    assert build_page.money(104.123, signed=False) == "$104.12"
+    assert "$-" not in build_page.build(ARCHIVE + RACE)

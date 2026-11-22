@@ -171,6 +171,7 @@ on the same logged scores and prices and differ only in their rules:
 
 The sheet's `state` and `trades` tabs are bot 1. The others are replays of the
 same logged scores (`scripts/leaderboard.py`), so there is no extra live state.
+Every bot starts the race with a pretend $100 and stakes the whole balance on each trade (no borrowing), so the balance compounds, and the page and leaderboard rank by what that $100 is now, counting any open position at the last logged price.
 The standings live in the `leaderboard` sheet tab, in `backup/leaderboard.json`
 (committed weekly), and in the `analysis` workflow's log.
 

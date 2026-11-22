@@ -418,8 +418,8 @@ def header_html(rows, race, table, simulated: int) -> str:
         since = (pct(bench["pct"]), "Brent since the race began") if bench and bench["pct"] is not None \
             else ("n/a", "Brent since the race began")
         ranked = leaderboard.ranked(table)
-        active = [b for b in ranked if b["trades"] or b["open"]]
-        leader = ranked[0]["label"] if active else "no trades yet"
+        untouched = all(b["balance_now"] == leaderboard.STARTING_BALANCE and not b["open"] for b in ranked)
+        leader = "no trades yet" if untouched else ranked[0]["label"]
     else:
         day_stat = ("Not started", "the race runs %d days" % RACE_DAYS)
         since = ("n/a", "Brent since the race began")
@@ -445,38 +445,58 @@ def _pnl_cell(value: float, text: str) -> str:
     return '<td class="n %s">%s</td>' % (tone(value), esc(text))
 
 
+def ret_pct(balance: float) -> float:
+    """Compounded return in percent of the starting balance."""
+    return (balance / leaderboard.STARTING_BALANCE - 1.0) * 100.0
+
+
+def balance_cells(balance: Optional[float], bold: bool = True) -> str:
+    """Two cells: the balance (main number) and the compounded return, both coloured."""
+    if balance is None:
+        return '<td class="n zero">n/a</td><td class="n zero">n/a</td>'
+    t = tone(balance - leaderboard.STARTING_BALANCE)
+    text = money(balance, signed=False)
+    return '<td class="n %s">%s</td><td class="n %s">%s</td>' % (
+        t, ("<b>%s</b>" % esc(text)) if bold else esc(text), t, esc(pct(ret_pct(balance))))
+
+
+def balances_after(trades: List[dict]) -> List[float]:
+    """Running balance after each closed trade, compounding in closing order."""
+    out, balance = [], leaderboard.STARTING_BALANCE
+    for t in trades:
+        balance *= 1.0 + t["pnl_pct"] / 100.0
+        out.append(balance)
+    return out
+
+
 def scoreboard_html(table: dict, race) -> str:
     out = ['<section id="scoreboard">\n<h2>The scoreboard</h2>']
     started = table["started"]
     if started:
         bots = leaderboard.ranked(table)
     else:
-        bots = [{"label": b["label"], "trades": 0, "winners": 0, "total_usd": 0.0, "total_pct": 0.0,
-                 "open": None} for b in leaderboard.BOTS]
-        out.append('<p class="lede">The race has not started yet. Every bot sits at zero until the first '
+        bots = [{"label": b["label"], "trades": 0, "winners": 0,
+                 "balance_now": leaderboard.STARTING_BALANCE, "open": None} for b in leaderboard.BOTS]
+        out.append('<p class="lede">The race has not started yet. Every bot sits at $100 until the first '
                    'race hour is logged.</p>')
     head = ('<tr><th class="n">Rank</th><th>Bot</th><th class="n">Closed trades</th>'
-            '<th class="n">Winners</th><th class="n">Profit per barrel</th><th class="n">Return</th>'
+            '<th class="n">Winners</th><th class="n">$100 is now</th><th class="n">Return</th>'
             '<th>Open position</th></tr>')
     body = []
     for rank, bot in enumerate(bots, 1):
-        body.append('<tr%s><td class="n">%s</td><td class="bot">%s</td><td class="n">%d</td><td class="n">%d</td>%s%s<td>%s</td></tr>'
+        body.append('<tr%s><td class="n">%s</td><td class="bot">%s</td><td class="n">%d</td><td class="n">%d</td>%s<td>%s</td></tr>'
                     % (' class="lead"' if started and rank == 1 and (bot["trades"] or bot["open"]) else "",
                        str(rank) if started else "", esc(bot["label"]), bot["trades"], bot["winners"],
-                       _pnl_cell(bot["total_usd"], money(bot["total_usd"])),
-                       _pnl_cell(bot["total_pct"], pct(bot["total_pct"])),
-                       esc(open_text(bot))))
+                       balance_cells(bot["balance_now"]), esc(open_text(bot))))
     bench = table.get("benchmark") or {}
-    if started and bench.get("usd") is not None:
-        bench_cells = (_pnl_cell(bench["usd"], money(bench["usd"])) + _pnl_cell(bench["pct"], pct(bench["pct"])))
-    else:
-        bench_cells = '<td class="n zero">n/a</td><td class="n zero">n/a</td>'
+    bench_cells = balance_cells(bench.get("balance_now") if started else None)
     body.append('<tr class="bench"><td class="n"></td><td class="bot">Just holding oil</td><td class="n"></td>'
                 '<td class="n"></td>%s<td>held the whole time</td></tr>' % bench_cells)
     out.append('<div class="tablebox"><table>\n<thead>%s</thead>\n<tbody>\n%s\n</tbody></table></div>'
                % (head, "\n".join(body)))
-    out.append('<p class="note">With six bots, one will be ahead by luck. So a winner has to win a second '
-               'four weeks before it counts.</p>\n</section>')
+    out.append('<p class="note">Each bot started the race with $100 of pretend money and puts all of it into '
+               'every trade, with no borrowing. With six bots, one will be ahead by luck, so a winner has to '
+               'win a second four weeks before it counts.</p>\n</section>')
     return "\n".join(out)
 
 
@@ -510,10 +530,12 @@ def bot_cards_html(race, table, by_run) -> str:
     for number, bot in enumerate(leaderboard.BOTS, 1):
         trades, position = leaderboard.run_bot(bot, race) if race else ([], rules.FLAT)
         stat = by_key.get(bot["key"])
-        total = sum(t["pnl_usd"] for t in trades)
+        balance_now = stat["balance_now"] if stat else leaderboard.STARTING_BALANCE
+        running = balances_after(trades)
         winners = sum(1 for t in trades if t["pnl_usd"] > 0)
-        record = "%s, %s, profit per barrel %s" % (plural(len(trades), "trade", "trades"),
-                                                   plural(winners, "winner", "winners"), money(total))
+        record = "%s, %s, $100 is now %s" % (plural(len(trades), "trade", "trades"),
+                                                plural(winners, "winner", "winners"),
+                                                money(balance_now, signed=False))
         if stat and stat["open"]:
             record += ", open: %s" % open_text(stat)
         card = ['<article class="trade">\n<header><span class="idx">%d</span><h3 style="margin:0">%s</h3></header>'
@@ -524,17 +546,18 @@ def bot_cards_html(race, table, by_run) -> str:
             card.append('<p class="empty" style="margin-top:.8rem">No trades yet.</p>')
         else:
             card.append('<ol class="tl">')
-            for t in trades:
+            for t, after in zip(trades, running):
                 entry_row = _row_text(by_run, t["entry_utc"])
                 cls = tone(t["pnl_pct"])
                 card.append(
                     '<li><div class="tr"><span class="side %s">%s</span>'
                     '<span>In %s on %s</span><span>Out %s on %s</span><span>%s</span>'
-                    '<span class="res %s">%s</span></div>'
+                    '<span class="res %s">%s</span><span>balance %s</span></div>'
                     % (esc(t["side"]), esc(t["side"].upper()),
                        money(t["entry_price"], signed=False), esc(when_text(t["entry_utc"])),
                        money(t["exit_price"], signed=False), esc(when_text(t["exit_utc"])),
-                       esc(REASON_TEXT.get(t["reason"], t["reason"])), cls, esc(pct(t["pnl_pct"]))))
+                       esc(REASON_TEXT.get(t["reason"], t["reason"])), cls, esc(pct(t["pnl_pct"])),
+                       esc(money(after, signed=False))))
                 if bot["key"] != "calendar":
                     reasoning = trim(entry_row.get("reasoning"), 240)
                     src = "The model, on entry"
@@ -564,20 +587,15 @@ def archive_html(archive, by_run) -> str:
 
     relabelled = [dict(r, rules_version="v2") for r in archive]
     table = leaderboard.standings(relabelled, with_luck=False)
-    out.append("<h3>What each bot would have made on the first ten weeks</h3>")
+    out.append("<h3>What $100 would have become over the first ten weeks</h3>")
     head = ('<tr><th>Bot</th><th class="n">Closed trades</th><th class="n">Winners</th>'
-            '<th class="n">Profit per barrel</th><th class="n">Return</th></tr>')
+            '<th class="n">$100 became</th><th class="n">Return</th></tr>')
     body = []
     for bot in table["bots"]:
-        body.append('<tr><td class="bot">%s</td><td class="n">%d</td><td class="n">%d</td>%s%s</tr>'
-                    % (esc(bot["label"]), bot["trades"], bot["winners"],
-                       _pnl_cell(bot["total_usd"], money(bot["total_usd"])),
-                       _pnl_cell(bot["total_pct"], pct(bot["total_pct"]))))
+        body.append('<tr><td class="bot">%s</td><td class="n">%d</td><td class="n">%d</td>%s</tr>'
+                    % (esc(bot["label"]), bot["trades"], bot["winners"], balance_cells(bot["balance_now"])))
     bench = table.get("benchmark") or {}
-    if bench.get("usd") is not None:
-        bc = _pnl_cell(bench["usd"], money(bench["usd"])) + _pnl_cell(bench["pct"], pct(bench["pct"]))
-    else:
-        bc = '<td class="n zero">n/a</td><td class="n zero">n/a</td>'
+    bc = balance_cells(bench.get("balance_now"))
     body.append('<tr class="bench"><td class="bot">Just holding oil</td><td class="n"></td><td class="n"></td>%s</tr>' % bc)
     out.append('<div class="tablebox"><table>\n<thead>%s</thead>\n<tbody>\n%s\n</tbody></table></div>'
                % (head, "\n".join(body)))
@@ -605,7 +623,7 @@ def archive_html(archive, by_run) -> str:
 
     if not trades:
         out.append('<p class="empty">Bot 1 would not have made a trade in this period.</p>')
-    for i, t in enumerate(trades, 1):
+    for i, (t, after) in enumerate(zip(trades, balances_after(trades)), 1):
         er, xr = _row_text(by_run, t["entry_utc"]), _row_text(by_run, t["exit_utc"])
         cls = "win" if t["pnl_usd"] > 0 else "loss"
         real = not str(er.get("score_source", "")).startswith("backfilled")
@@ -625,7 +643,7 @@ def archive_html(archive, by_run) -> str:
             ' <div class="leg"><span class="lbl">Out</span><span class="val">%s</span>'
             '<span class="sub">%s &middot; %s</span></div>\n'
             ' <div class="leg held"><span class="lbl">Held</span><span class="val">%s</span>'
-            '<span class="sub">%s a barrel</span></div>\n</div>\n'
+            '<span class="sub">balance %s</span></div>\n</div>\n'
             '<div class="quote">\n <p class="q">“%s”</p>\n'
             ' <p class="src">The model, on entry · confidence %s</p>\n</div>\n'
             '<p class="heads">%s</p>\n'
@@ -634,7 +652,7 @@ def archive_html(archive, by_run) -> str:
                "Actually logged" if real else "Rescored after the fact", esc(pct(t["pnl_pct"])),
                money(t["entry_price"], signed=False), esc(when_text(t["entry_utc"])), esc(score_text(es)),
                money(t["exit_price"], signed=False), esc(when_text(t["exit_utc"])),
-               esc(REASON_TEXT.get(t["reason"], t["reason"])), esc(held), esc(money(t["pnl_usd"])),
+               esc(REASON_TEXT.get(t["reason"], t["reason"])), esc(held), esc(money(after, signed=False)),
                esc(trim(er.get("reasoning"))), esc(conf), esc(trim(er.get("key_headlines"), 260)),
                esc(trim(xr.get("reasoning"))), esc(exit_note)))
 

@@ -33,6 +33,7 @@ OUT_DIR = "backup"
 TAB = "leaderboard"
 MIN_TRADES_FOR_LUCK = 10
 MIN_ROWS_FOR_LUCK = 60
+STARTING_BALANCE = 100.0   # pretend dollars each bot starts the race with, all of it staked on every trade
 
 # Registered on 2026-11-22. Must not be edited during the race: changing a bot
 # afterwards would mean it was chosen with the results in view.
@@ -97,6 +98,14 @@ def luck_p(bot: dict, race: List[dict], real_total: float) -> Optional[float]:
     return (beaten + 1) / (len(totals) + 1)
 
 
+def compound(trades: List[dict], start: float = STARTING_BALANCE) -> float:
+    """Balance after the closed trades, whole balance staked each time (pnl_pct includes the spread)."""
+    balance = start
+    for t in trades:
+        balance *= 1.0 + t["pnl_pct"] / 100.0
+    return balance
+
+
 def standings(rows: List[dict], with_luck: bool = True) -> dict:
     """The table. with_luck=False skips the shifted null, which costs seconds."""
     race = race_rows(rows)
@@ -109,11 +118,14 @@ def standings(rows: List[dict], with_luck: bool = True) -> dict:
     for bot in BOTS:
         trades, position = run_bot(bot, race)
         total = sum(t["pnl_usd"] for t in trades)
+        balance = compound(trades)
+        balance_now = balance
         open_position = None
         if position.is_open:
             unrealised = None
             if now_price is not None and position.entry_price is not None:
-                unrealised = rules.pnl(position.side, position.entry_price, now_price)[0]
+                unrealised, unrealised_pct = rules.pnl(position.side, position.entry_price, now_price)
+                balance_now = balance * (1.0 + unrealised_pct / 100.0)
             open_position = {"side": position.side, "entry_price": position.entry_price,
                              "entry_utc": position.entry_utc, "unrealised_usd": unrealised}
 
@@ -136,6 +148,7 @@ def standings(rows: List[dict], with_luck: bool = True) -> dict:
             "winners": sum(1 for t in trades if t["pnl_usd"] > 0),
             "total_usd": round(total, 4),
             "total_pct": round(sum(t["pnl_pct"] for t in trades), 4),
+            "balance": round(balance, 4), "balance_now": round(balance_now, 4),
             "worst_usd": min([t["pnl_usd"] for t in trades if t["pnl_usd"] < 0], default=0),
             "open": open_position,
             "luck_p": p, "luck_note": note,
@@ -143,10 +156,12 @@ def standings(rows: List[dict], with_luck: bool = True) -> dict:
 
     first = first_price(race)
     benchmark = {"first_price": first, "last_price": now_price,
-                 "usd": None, "pct": None}
+                 "usd": None, "pct": None,
+                 "balance_now": STARTING_BALANCE if first and now_price is not None else None}
     if first and now_price is not None:
         benchmark["usd"] = round(now_price - first, 4)
         benchmark["pct"] = round((now_price - first) / first * 100.0, 4)
+        benchmark["balance_now"] = round(STARTING_BALANCE * now_price / first, 4)
 
     return {"started": True, "bots": bots, "benchmark": benchmark,
             "race_rows": len(race), "race_start": str(race[0].get("run_utc", "")),
@@ -154,7 +169,8 @@ def standings(rows: List[dict], with_luck: bool = True) -> dict:
 
 
 def ranked(table: dict) -> List[dict]:
-    return sorted(table["bots"], key=lambda b: b["total_usd"], reverse=True)
+    """Best balance first; ties keep bot number order (sorted is stable)."""
+    return sorted(table["bots"], key=lambda b: -b["balance_now"])
 
 
 def _open_text(bot: dict) -> str:
@@ -174,17 +190,17 @@ def _luck_text(bot: dict) -> str:
 def write_tab(client, table: dict, updated_utc: Optional[str] = None) -> None:
     """Overwrite the leaderboard tab: header, bots in rank order, blank row,
     benchmark row, updated_utc."""
-    rows = [["rank", "bot", "trades", "winners", "total_usd", "total_pct", "worst_usd",
+    rows = [["rank", "bot", "$100 is now", "trades", "winners", "total_usd", "total_pct", "worst_usd",
              "open_side", "open_entry", "open_unrealised_usd", "luck_p", "luck_note"]]
     for rank, bot in enumerate(ranked(table), start=1):
         o = bot["open"] or {}
-        rows.append([rank, bot["label"], bot["trades"], bot["winners"], bot["total_usd"],
+        rows.append([rank, bot["label"], bot["balance_now"], bot["trades"], bot["winners"], bot["total_usd"],
                      bot["total_pct"], bot["worst_usd"], o.get("side", "flat"),
                      o.get("entry_price", ""), o.get("unrealised_usd", ""),
                      bot["luck_p"] if bot["luck_p"] is not None else "", bot["luck_note"]])
     rows.append([])
     b = table["benchmark"] or {}
-    rows.append(["benchmark", "Buy and hold", "", "", b.get("usd", ""), b.get("pct", ""), "",
+    rows.append(["benchmark", "Buy and hold", b.get("balance_now") or "", "", "", b.get("usd", ""), b.get("pct", ""), "",
                  "", b.get("first_price", ""), b.get("last_price", ""), "", "first and last price"])
     rows.append(["updated_utc", updated_utc or datetime.now(timezone.utc).isoformat()])
     client.write_table(TAB, rows)
@@ -192,16 +208,16 @@ def write_tab(client, table: dict, updated_utc: Optional[str] = None) -> None:
 
 def print_table(table: dict) -> None:
     print("race started %s, %d race rows" % (table["race_start"], table["race_rows"]))
-    print("\n  %-4s %-32s %6s %8s %12s %9s %10s  %-26s %s"
-          % ("rank", "bot", "trades", "winners", "total $/bbl", "total %", "worst $", "open", "luck p"))
+    print("\n  %-4s %-32s %11s %6s %8s %12s %9s %10s  %-26s %s"
+          % ("rank", "bot", "$100 is now", "trades", "winners", "total $/bbl", "total %", "worst $", "open", "luck p"))
     for rank, bot in enumerate(ranked(table), start=1):
-        print("  %-4d %-32s %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s"
-              % (rank, bot["label"], bot["trades"], bot["winners"], bot["total_usd"],
+        print("  %-4d %-32s %11.2f %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s"
+              % (rank, bot["label"], bot["balance_now"], bot["trades"], bot["winners"], bot["total_usd"],
                  bot["total_pct"], bot["worst_usd"], _open_text(bot), _luck_text(bot)))
     b = table["benchmark"]
     if b and b["usd"] is not None:
-        print("\n  buy and hold over the same window: %.2f to %.2f = %+.2f/bbl (%+.2f%%)"
-              % (b["first_price"], b["last_price"], b["usd"], b["pct"]))
+        print("\n  buy and hold over the same window: %.2f to %.2f = %+.2f/bbl (%+.2f%%), $100 is now %.2f"
+              % (b["first_price"], b["last_price"], b["usd"], b["pct"], b["balance_now"]))
     print("\n  Six bots: one will lead by luck. A winner has to repeat in a second period.")
 
 
