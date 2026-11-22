@@ -1,9 +1,9 @@
-PROBE: clean window backtest feasibility, run 2026-11-22 11:59 UTC
+PROBE: clean window backtest feasibility, run 2026-11-22 12:04 UTC
 
 == 1. Model self report (weak evidence, NOT a documented source) ==
 model: claude-sonnet-5
-answer: I don't have an exact, verifiable cutoff date to share with confidence, and I can't reliably pinpoint "the most recent event I know about," since my knowledge isn't indexed that way and I can't browse to confirm recency—I'd recommend checking current sources for up-to-date information.
-tokens_in=41 tokens_out=94
+answer: I don't have precise, verified details about my own training cutoff date or specific "most recent event" I can confirm with certainty—this can vary and I might be wrong if I guess a specific month/year. Generally, I'd encourage you to check current documentation from my developer (Anthropic) for the most accurate, up-to-date information on my training data cutoff, since I can't reliably self-report that detail.
+tokens_in=41 tokens_out=126
 
 == 2. GDELT DOC 2.0 article lists, 6 hour windows ==
 query: (oil OR Brent OR OPEC OR Hormuz) sourcelang:english
@@ -11,15 +11,21 @@ query: (oil OR Brent OR OPEC OR Hormuz) sourcelang:english
 -- March 2026: 2026-03-10 12:00 to 18:00 UTC, HTTP 429
   body start: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:
 -- June 2026: 2026-06-10 12:00 to 18:00 UTC, HTTP 200
+  csv header: ﻿url,mobileurl,date,title
   articles returned: 75 (max requested 75)
-   |  | Rise in gas prices from Iran war could have helped inflation hit a 3 - year high
-   |  | Alberta premier touts  single - greatest expansion of pipelines in decade at global energy show
-   |  | Recipe : Use corn on the cob , peppers and sausage for this baked rice dish
-   |  | US existing - home sales jump to highest level since December
-   |  | World markets walk a tightrope between AI stocks and oil shocks
-  (429 rate limited, pausing 15s and retrying once)
--- early September 2026: 2026-09-08 12:00 to 18:00 UTC, HTTP 429
-  body start: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:
+  2026-06-10 17:45:00 |  | Rise in gas prices from Iran war could have helped inflation hit a 3 - year high
+  2026-06-10 17:45:00 |  | Alberta premier touts  single - greatest expansion of pipelines in decade at global energy show
+  2026-06-10 17:45:00 |  | Recipe : Use corn on the cob , peppers and sausage for this baked rice dish
+  2026-06-10 17:45:00 |  | US existing - home sales jump to highest level since December
+  2026-06-10 17:45:00 |  | World markets walk a tightrope between AI stocks and oil shocks
+-- early September 2026: 2026-09-08 12:00 to 18:00 UTC, HTTP 200
+  csv header: ﻿url,mobileurl,date,title
+  articles returned: 75 (max requested 75)
+  2026-09-08 18:15:00 |  | Ogoni Clean - Up Gains Fresh Momentum Under Renewed Hope Agenda – HYPREP
+  2026-09-08 18:15:00 |  | Old houses , rivers , churches come alive in Thomasian artist  Obra Maestro  
+  2026-09-08 18:15:00 |  | Iran War 2026 - LIVE UPDATES
+  2026-09-08 18:15:00 |  | Trade Setup for September 9 : Top 15 things to know before the opening bell
+  2026-09-08 18:15:00 |  | Trump Ten - Hour AI Social Media Bender Sparks Fresh Fears of Cognitive Decline
 live system search terms: oil, Brent, crude, OPEC, Iran, Hormuz, Saudi, Aramco, tanker, pipeline, ceasefire, sanctions, Red Sea
 
 == 3. OilPriceAPI Brent history (src.price.fetch_brent_range) ==
@@ -29,6 +35,12 @@ live system search terms: oil, Brent, crude, OPEC, Iran, Hormuz, Saudi, Aramco, 
 -- March 2026 24h: 100 points, first 2026-03-11T08:16:55.563000+00:00 89.69, last 2026-03-11T11:59:34.879000+00:00 91.24, median gap 1 min
 -- June 2026 24h: 100 points, first 2026-06-11T06:38:33.700000+00:00 93.42, last 2026-06-11T11:43:06.945000+00:00 91.81, median gap 0 min
 -- early September 2026 24h: 100 points, first 2026-09-09T09:35:30.664000+00:00 100.57, last 2026-09-09T11:56:36.644000+00:00 100.84, median gap 1 min
+-- March 2026 first 20 min of window: 6 points, first 2026-03-10T12:02:20.868000+00:00 91.80, last 2026-03-10T12:16:46.496000+00:00 92.46, median gap 2 min
+-- June 2026 first 20 min of window: 9 points, first 2026-06-10T12:02:33.287000+00:00 92.94, last 2026-06-10T12:18:27.558000+00:00 93.02, median gap 0 min
+-- early September 2026 first 20 min of window: 13 points, first 2026-09-08T12:00:13.974000+00:00 98.69, last 2026-09-08T12:19:37.757000+00:00 98.60, median gap 1 min
+-- 2026-02-02 (just after Jan 2026 cutoff) 20 min: 39 points, first 2026-02-02T12:00:09.222000+00:00 66.02, last 2026-02-02T12:19:55.269000+00:00 66.08, median gap 0 min
+-- 2025-11-03 (before cutoff) 20 min: 10 points, first 2025-11-03T12:00:08.086000+00:00 64.56, last 2025-11-03T12:15:17.079000+00:00 64.64, median gap 0 min
+-- 2024-06-03 (two years back) 20 min: 36 points, first 2024-06-03T12:00:29.950000+00:00 81.14, last 2024-06-03T12:19:10.187000+00:00 81.14, median gap 1 min
 -- March 2026 7 days: 100 points, first 2026-03-17T07:52:26.596000+00:00 103.15, last 2026-03-17T11:52:21.084000+00:00 103.40, median gap 1 min
 -- 2026-10-20 6h (recent control): 100 points, first 2026-10-20T14:21:10.254000+00:00 109.07, last 2026-10-20T17:56:35.979000+00:00 108.78, median gap 2 min
 
