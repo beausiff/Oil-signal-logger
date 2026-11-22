@@ -244,14 +244,14 @@ def test_a_monday_break_run_does_not_touch_the_weekend_row(wired, monkeypatch):
 def test_entry_is_mirrored_to_the_broker_and_noted(wired, monkeypatch):
     calls = []
     monkeypatch.setattr(main.broker, "sync",
-                        lambda side, allow_open: calls.append((side, allow_open)) or "ig_demo=opened:long:D1@9002")
+                        lambda side, allow_open: calls.append((side, allow_open)) or "oanda_demo=opened:long:7@75.1")
     wire_news(monkeypatch, [fake_headline()])
     wire_price(monkeypatch, 80.0)
     wire_score(monkeypatch, 8)
 
     assert main.run() == 0
     assert calls == [("long", True)]
-    assert "ig_demo=opened:long:D1@9002" in wired.records(SIGNALS)[0]["notes"]
+    assert "oanda_demo=opened:long:7@75.1" in wired.records(SIGNALS)[0]["notes"]
 
 
 def test_dry_run_never_touches_the_broker(wired, monkeypatch):

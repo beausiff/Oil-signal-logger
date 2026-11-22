@@ -1,7 +1,7 @@
 """One hourly run of the oil news signal logger.
 
 Paper positions live as rows in a Google Sheet. With BROKER_MODE=demo the same
-position is mirrored onto an IG demo account (fake money, see src/broker.py).
+position is mirrored onto an OANDA practice account (fake money, see src/broker.py).
 There is no live trading mode.
 
     python -m src.main             # live run
@@ -287,7 +287,7 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             "hours_held": hours_held,
         }
 
-    # 6b. Mirror onto the IG demo account. Off by default, never fails the run.
+    # 6b. Mirror onto the OANDA practice account. Off by default, never fails the run.
     # Skipped while the market is shut: the next open run catches up.
     if not dry_run and market_open:
         broker_note = broker.sync(new_position.side, allow_open=decision.action in ("buy", "sell"))

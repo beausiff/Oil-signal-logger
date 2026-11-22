@@ -5,8 +5,8 @@ it with Claude, records a buy / sell / hold / flat decision against locked rules
 and logs the Brent price. Everything lands in a Google Sheet.
 
 **There is no real money trading.** Positions are paper rows in a spreadsheet.
-They can optionally be mirrored onto an IG demo account with fake money (see
-[IG demo mirror](#ig-demo-mirror)), off by default. The point is to find out, after four weeks, whether the signals
+They can optionally be mirrored onto an OANDA practice account with fake money (see
+[OANDA demo mirror](#oanda-demo-mirror)), off by default. The point is to find out, after four weeks, whether the signals
 had any predictive value against what the price actually did.
 
 ---
@@ -254,34 +254,34 @@ No broker connection. No eToro. No real orders. No rule changes mid test.
 
 ---
 
-## IG demo mirror
+## OANDA demo mirror
 
-Optional. Copies each paper trade onto an IG **demo** account (fake money, real
-prices) so you can see real fills. There is no live mode in the code.
+Optional. Copies each paper trade onto an OANDA **practice** account (fake
+money, real prices) so you can see real fills. There is no live mode in the
+code: the practice server address is fixed, and a live token does not work on it.
 
 How it behaves:
 
 * Opens only on the run where the paper rules enter. A missed entry is not chased.
 * Closes whatever is open on the market whenever the paper position is flat or flips.
-* Reads IG's open positions first every run, so a rerun never doubles up and a
+* Reads OANDA's open trades first every run, so a rerun never doubles up and a
   failed close is retried next run.
-* Puts a stop at IG 5% from entry (`BROKER_STOP_PCT`), a backstop for the hours
+* Puts a stop at OANDA 5% from entry (`BROKER_STOP_PCT`), a backstop for the hours
   between runs. The paper 3% trailing stop normally exits first.
-* Stake is capped at `BROKER_MAX_SIZE` per point.
-* Any IG error is written to the `notes` column. It never fails the run.
+* Units per trade are capped at `BROKER_MAX_UNITS`.
+* Any OANDA error is written to the `notes` column. It never fails the run.
 
 Setup:
 
-1. Open an IG demo account at ig.com, then in My IG go to **Settings → API keys**
-   and create a **demo** key.
+1. Open a free **demo** account at oanda.com. In the OANDA hub, go to
+   hub.oanda.com/tpa/personal_token and click **Generate** to get a personal
+   access token. Note the account ID on the hub dashboard (like `101-004-…-001`).
 2. In GitHub: **Settings → Secrets and variables → Actions → Secrets**, add
-   `IG_API_KEY`, `IG_USERNAME`, `IG_PASSWORD`. Add `IG_ACCOUNT_ID` only if the
-   demo has more than one account (spread bet and CFD).
-3. Run the **ig_check** workflow from the Actions tab. It logs in and lists Brent
-   markets with their epics. It places no orders.
-4. Under **Variables**, add `IG_EPIC` (from step 3), `IG_EXPIRY` (`DFB` for a
-   spread bet, `-` for a CFD, as ig_check shows), and `IG_SIZE` (stake per point,
-   start at `1`).
+   `OANDA_API_TOKEN` and `OANDA_ACCOUNT_ID`.
+3. Run the **oanda_check** workflow from the Actions tab. It logs in and lists
+   Brent markets. It places no orders.
+4. Optional, under **Variables**: `OANDA_INSTRUMENT` (default `BCO_USD`, Brent)
+   and `OANDA_UNITS` (units per trade, barrels for Brent, default `1`).
 5. Add the variable `BROKER_MODE` = `demo`. That switches it on.
 
 To switch it off, delete `BROKER_MODE` or set it to `off`.

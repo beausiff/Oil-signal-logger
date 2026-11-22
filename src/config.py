@@ -91,15 +91,16 @@ SPREAD_USD_PER_BBL = 0.05
 POSITION_SIZE_UNITS = 1
 
 # --------------------------------------------------------------- broker ----
-# Optional mirror of the paper position onto an IG demo account (src/broker.py).
+# Optional mirror of the paper position onto an OANDA practice account (src/broker.py).
 # Off unless BROKER_MODE=demo. None of this changes the paper rules above.
 #
-# The stop held at IG is a backstop for the hours between runs, not a rule.
+# The stop held at OANDA is a backstop for the hours between runs, not a rule.
 # It is wider than the 3% trailing stop so the paper rules normally exit first
 # and the demo account tracks the paper trades.
 BROKER_STOP_PCT = 5.0
-# Hard ceiling on IG_SIZE, the stake per point.
-BROKER_MAX_SIZE = 5
+# Hard ceiling on OANDA_UNITS, the units per trade (barrels for BCO_USD).
+# 100 barrels is roughly $100 per $1 move in Brent.
+BROKER_MAX_UNITS = 100
 
 # ------------------------------------------------------------- outcomes ----
 CONTEXT_SIGNAL_ROWS = 24
