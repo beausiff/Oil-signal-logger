@@ -1,0 +1,86 @@
+{
+ "benchmark": {
+  "first_price": 92.59,
+  "last_price": 92.59,
+  "pct": 0.0,
+  "usd": 0.0
+ },
+ "bots": [
+  {
+   "key": "original",
+   "label": "Bot 1: Original",
+   "luck_note": "need 10 trades",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  },
+  {
+   "key": "hold_longer",
+   "label": "Bot 2: Hold longer",
+   "luck_note": "need 10 trades",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  },
+  {
+   "key": "lower_bar",
+   "label": "Bot 3: Lower bar",
+   "luck_note": "need 10 trades",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  },
+  {
+   "key": "lower_bar_hold",
+   "label": "Bot 4: Lower bar + hold longer",
+   "luck_note": "need 10 trades",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  },
+  {
+   "key": "calendar",
+   "label": "Bot 5: Calendar only",
+   "luck_note": "n/a, reads no news",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  },
+  {
+   "key": "opposite",
+   "label": "Bot 6: Opposite",
+   "luck_note": "need 10 trades",
+   "luck_p": null,
+   "open": null,
+   "total_pct": 0,
+   "total_usd": 0,
+   "trades": 0,
+   "winners": 0,
+   "worst_usd": 0
+  }
+ ],
+ "generated_utc": "2026-11-22T10:17:37.658952+00:00",
+ "race_rows": 1,
+ "race_start": "2026-11-22T10:17:37.658952+00:00",
+ "started": true
+}
