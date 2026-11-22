@@ -41,11 +41,6 @@ def truthy(value) -> bool:
     return str(value).strip().lower() in ("true", "1", "yes")
 
 
-# Variants of the locked rules were picked after looking at the first 310 rows,
-# so those rows cannot judge them. Rows logged on or after this date can.
-REGISTERED_ON = "2026-11-23"
-
-
 def replay(rows: List[dict]):
     return _replay_loop(rows)
 
@@ -147,7 +142,7 @@ def _trading_week(local):
     return day.isocalendar()[:2]
 
 
-def calendar_only(rows: List[dict], use_stop: bool = False):
+def calendar_only(rows: List[dict], use_stop: bool = False, with_position: bool = False):
     """The same calendar discipline with the news removed.
 
     Go long at the first priced, open, entry-allowed Monday to Friday row of each
@@ -165,6 +160,8 @@ def calendar_only(rows: List[dict], use_stop: bool = False):
     sensitive to entry timing (allowing Sunday evening entries gives -$3.21 with
     no stop and -$21.92 with the stop on the 310 row backup), so it is a rough
     control.
+
+    with_position=True returns (trades, open_position) instead of just trades.
     """
     position = FLAT
     trades = []
@@ -213,10 +210,10 @@ def calendar_only(rows: List[dict], use_stop: bool = False):
         if price is not None:
             last_price = price
 
-    return trades
+    return (trades, position) if with_position else trades
 
 
-def shuffled_strategy(rows: List[dict], min_offset: int = 10):
+def shuffled_strategy(rows: List[dict], min_offset: int = 10, runner=None):
     """Replay the rules on circularly shifted scores, at every offset.
 
     This keeps every price and timestamp exactly where it is and slides the
@@ -226,8 +223,9 @@ def shuffled_strategy(rows: List[dict], min_offset: int = 10):
     hours share news, so they repeat), which a plain shuffle destroys and which
     makes a plain shuffle's null too easy to beat. Returns one total per
     offset. If the real result sits in the middle of this pile, the scores told
-    it nothing.
+    it nothing. runner(rows) -> (trades, ...) defaults to the locked replay.
     """
+    runner = runner or replay
     n = len(rows)
     if n < 3 * min_offset:
         return []
@@ -238,7 +236,7 @@ def shuffled_strategy(rows: List[dict], min_offset: int = 10):
     for k in range(min_offset, n - min_offset + 1):
         for i, row in enumerate(scratch):
             row["score"], row["confidence"] = pairs_in[(i + k) % n]
-        trades, _, _ = replay(scratch)
+        trades = runner(scratch)[0]
         totals.append(sum(t["pnl_usd"] for t in trades))
     return totals
 
@@ -331,30 +329,7 @@ def main() -> int:
               % (real_total, beaten, len(totals), p,
                  "SIGNAL" if p < 0.05 else "indistinguishable from chance"))
 
-    print("\n" + "=" * 78)
-    print("REGISTERED VARIANTS (fixed 2026-11-22, judged only on later rows)")
-    print("=" * 78)
-    # Two variants of the locked rules beat the shifted null on the first 310
-    # rows, but they were picked after seeing those rows (about nine variants
-    # were tried), so that data cannot judge them. They are fixed here and
-    # judged only on trades entered on or after REGISTERED_ON. The whole
-    # history is replayed so position state carries across the boundary, and
-    # each trade is classed by its entry time. Nothing here changes the live rules.
-    for name, kwargs in (
-        ("locked rules", {}),
-        ("no reversal exit", {"use_reversal": False}),
-        ("entry at +/-4", {"entry": 4}),
-    ):
-        vtrades, _, _ = replay_variant(rows, **kwargs)
-        early = [t for t in vtrades if str(t["entry_utc"])[:10] < REGISTERED_ON]
-        late = [t for t in vtrades if str(t["entry_utc"])[:10] >= REGISTERED_ON]
-        for label, group, note in (
-            ("in sample", early, "what suggested it, not evidence"),
-            ("out of sample", late, "too few to judge" if len(late) < 10 else ""),
-        ):
-            wins = sum(1 for t in group if t["pnl_usd"] > 0)
-            print("  %-17s %-13s trades: %-3d winners: %-3d total: $%+.2f/bbl   %s"
-                  % (name, label, len(group), wins, sum(t["pnl_usd"] for t in group), note))
+
     print("=" * 78)
     return 0
 

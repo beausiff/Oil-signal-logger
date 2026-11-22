@@ -210,6 +210,19 @@ class SheetsClient:
         if requests:
             self.worksheet(tab).batch_update(requests, value_input_option="USER_ENTERED")
 
+    def write_table(self, tab: str, rows: Sequence[Sequence[object]]) -> None:
+        """Overwrite a whole tab from A1, creating it (30 x 12) when missing."""
+        import gspread
+
+        try:
+            ws = self.worksheet(tab)
+        except gspread.WorksheetNotFound:
+            ws = self._sheet.add_worksheet(title=tab, rows=30, cols=12)
+            self._tabs[tab] = ws
+        payload = [["" if v is None else neutralise(v) for v in row] for row in rows]
+        ws.clear()
+        ws.update(range_name="A1", values=payload)
+
     def find_row(self, tab: str, column: str, value: str) -> Optional[dict]:
         for record in self.records(tab):
             if str(record.get(column, "")).strip() == str(value).strip():
@@ -246,6 +259,9 @@ class DryRunSheets:
 
     def write_state(self, state: dict) -> None:
         print("[dry-run] state: %s" % json.dumps(state, default=str))
+
+    def write_table(self, tab: str, rows: Sequence[Sequence[object]]) -> None:
+        print("[dry-run] write table %s: %d rows" % (tab, len(rows)))
 
     def update_cells(self, tab: str, row_number: int, values: Dict[str, object]) -> None:
         print("[dry-run] update %s row %d: %s" % (tab, row_number, json.dumps(values, default=str)))

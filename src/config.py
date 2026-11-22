@@ -7,7 +7,12 @@ change, bump RULES_VERSION so the logged rows stay comparable.
 # v1.1: the Friday close and the weekend snapshot no longer depend on a run
 # landing inside one specific hour, because GitHub's scheduler drops runs. The
 # thresholds are untouched. No trade had been taken under v1.
-RULES_VERSION = "v1.1"
+#
+# v2: the news window widens to everything published since the previous run
+# (it used to be the last 90 minutes, which missed most of the news when runs
+# land hours apart), and the multi bot race starts (scripts/leaderboard.py).
+# Trading thresholds are unchanged. Rows are not comparable with v1.x on input.
+RULES_VERSION = "v2"
 
 # ---------------------------------------------------------------- model ----
 ANTHROPIC_MODEL = "claude-sonnet-5"
@@ -20,7 +25,12 @@ COST_PER_MTOK_INPUT = 2.00
 COST_PER_MTOK_OUTPUT = 10.00
 
 # ----------------------------------------------------------------- news ----
+# The window for a run is the time since the previous run plus a margin,
+# clamped to [NEWS_LOOKBACK_MINUTES, NEWS_LOOKBACK_MAX_MINUTES]; with no
+# previous run it is NEWS_LOOKBACK_MINUTES.
 NEWS_LOOKBACK_MINUTES = 90
+NEWS_LOOKBACK_MAX_MINUTES = 720
+NEWS_WINDOW_MARGIN_MINUTES = 10
 MAX_HEADLINES_PER_RUN = 40
 DEDUPE_LOOKBACK_ROWS = 1000
 

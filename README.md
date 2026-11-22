@@ -15,7 +15,8 @@ had any predictive value against what the price actually did.
 The job is scheduled hourly, but GitHub only delivers roughly 3 to 4 scheduled
 runs a day for this repository, so expect a few rows a day, not 24.
 
-1. Fetches oil news published in the last 90 minutes (Google News RSS, free).
+1. Fetches oil news published since the previous run, plus a 10 minute margin
+   (at least 90 minutes, at most 12 hours; Google News RSS, free).
 2. Cleans and dedupes it against the last 1,000 logged headlines. Caps at 40.
 3. Fetches the Brent price. A closed market or a failed call logs a blank and carries on.
 4. Loads the last 24 scores and the current paper position.
@@ -154,6 +155,32 @@ python -m src.main --dry-run   # needs no keys
 
 ---
 
+## Version 2: the race
+
+From `v2` the news window covers everything published since the previous run
+(plus 10 minutes, at least 90 minutes, at most 12 hours), instead of only the
+last 90 minutes, so rows are not comparable with `v1.x` on input. Six bots race
+on the same logged scores and prices and differ only in their rules:
+
+1. **Original**: the locked rules.
+2. **Hold longer**: the locked rules without the reversal exit.
+3. **Lower bar**: enters at a score of +/-4 instead of +/-6.
+4. **Lower bar + hold longer**: both changes.
+5. **Calendar only**: long each week, out by Friday, reads no news.
+6. **Opposite**: the locked rules on negated scores, so it shorts where the original buys.
+
+The sheet's `state` and `trades` tabs are bot 1. The others are replays of the
+same logged scores (`scripts/leaderboard.py`), so there is no extra live state.
+The standings live in the `leaderboard` sheet tab, in `backup/leaderboard.json`
+(committed weekly), and in the `analysis` workflow's log.
+
+With six bots one will lead by luck. A winner has to repeat in a second period
+before it means anything. The `luck p` column shows how often the same bot,
+with its scores slid round the clock, matches or beats its real total; it only
+appears after 10 closed trades and 60 race rows.
+
+---
+
 ## The locked rules
 
 These do not change during the test. If one must change, bump `RULES_VERSION` in
@@ -168,7 +195,7 @@ These do not change during the test. If one must change, bump `RULES_VERSION` in
 | Trailing stop | 3% from the best price since entry |
 | Friday | no new entries after 10:00 Chicago, any open position closed before the 16:00 close, or at the first run after it if that one was dropped |
 | Size | one position at a time, 1 unit |
-| Rules version | `v1.1`, stamped on every row. Thresholds unchanged from v1 |
+| Rules version | `v2`, stamped on every row. Trading thresholds unchanged from v1 |
 | Spread | $0.05 per barrel deducted per round trip |
 
 **The trailing stop is checked once per run, not tick by tick.** A real fill would be

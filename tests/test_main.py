@@ -44,7 +44,7 @@ def fake_headline(title="Tanker struck in the Red Sea"):
 
 
 def wire_news(monkeypatch, headlines):
-    monkeypatch.setattr(main.news, "collect", lambda known, now: list(headlines))
+    monkeypatch.setattr(main.news, "collect", lambda known, now, **k: list(headlines))
 
 
 def wire_price(monkeypatch, value, note=""):

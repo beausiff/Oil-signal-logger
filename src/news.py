@@ -201,11 +201,12 @@ def filter_and_dedupe(
     return kept[:cap]
 
 
-def collect(known_hashes: Iterable[str], now_utc: datetime) -> List[Headline]:
+def collect(known_hashes: Iterable[str], now_utc: datetime,
+            lookback_minutes: int = config.NEWS_LOOKBACK_MINUTES) -> List[Headline]:
     raw: List[Headline] = []
     try:
         raw.extend(fetch_google_news())
     except requests.RequestException as exc:  # a dead feed must not kill the run
         print("google news fetch failed: %s" % exc)
     raw.extend(fetch_gnews())
-    return filter_and_dedupe(raw, known_hashes, now_utc)
+    return filter_and_dedupe(raw, known_hashes, now_utc, lookback_minutes=lookback_minutes)

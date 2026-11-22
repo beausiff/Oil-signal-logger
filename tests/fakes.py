@@ -13,6 +13,7 @@ class FakeSheets:
             for index, row in enumerate(self.data[tab], start=2):
                 row.setdefault("_row", index)
         self.state = dict(sheets.EMPTY_STATE)
+        self.tables: Dict[str, List[list]] = {}
 
     def ensure_tabs(self):
         return []
@@ -44,6 +45,9 @@ class FakeSheets:
                 row.update(values)
                 return
         raise AssertionError("no row %d in %s" % (row_number, tab))
+
+    def write_table(self, tab, rows):
+        self.tables[tab] = [list(row) for row in rows]
 
     def find_row(self, tab, column, value):
         for row in self.data[tab]:

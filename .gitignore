@@ -9,4 +9,7 @@ venv/
 # service account key being committed, so this stays an allowlist of exactly
 # one path rather than an exception for the backup folder.
 !backup/trade_story.json
+# Same again for the leaderboard, the other generated file the weekly backup
+# commits. Exactly one more path, not a wider exception.
+!backup/leaderboard.json
 .pytest_cache/

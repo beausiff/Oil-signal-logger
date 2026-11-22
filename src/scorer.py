@@ -63,11 +63,14 @@ def load_system_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def build_user_message(headlines: Sequence[dict], recent_signals: Sequence[dict]) -> str:
+def build_user_message(headlines: Sequence[dict], recent_signals: Sequence[dict],
+                       window_minutes: Optional[int] = None) -> str:
     """Headlines and prior scores are data. The system prompt says so too."""
     lines = ["<new_headlines>"]
+    if window_minutes:
+        lines.append("(headlines published in the %d minutes since the previous run)" % window_minutes)
     if not headlines:
-        lines.append("(none in the last hour)")
+        lines.append("(none in this window)")
     for item in headlines:
         lines.append(
             "- [%s | %s] %s"
@@ -160,6 +163,7 @@ def score_news(
     headlines: Sequence[dict],
     recent_signals: Sequence[dict],
     client: Optional[anthropic.Anthropic] = None,
+    window_minutes: Optional[int] = None,
 ):
     """Return (Score|None, Usage).
 
@@ -178,7 +182,7 @@ def score_news(
         return None, usage
 
     system_prompt = load_system_prompt()
-    user_message = build_user_message(headlines, recent_signals)
+    user_message = build_user_message(headlines, recent_signals, window_minutes)
 
     messages = [{"role": "user", "content": user_message}]
     last_error = ""

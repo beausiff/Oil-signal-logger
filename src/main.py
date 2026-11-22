@@ -134,6 +134,18 @@ def had_headlines(row: dict) -> bool:
     return outcomes.to_float(row.get("new_headline_count")) != 0
 
 
+def news_window_minutes(gap: Optional[float]) -> int:
+    """Minutes of news to accept: everything since the previous run, plus a margin.
+
+    Clamped to [NEWS_LOOKBACK_MINUTES, NEWS_LOOKBACK_MAX_MINUTES]. With no
+    previous run (gap is None) it is the minimum.
+    """
+    if gap is None:
+        return config.NEWS_LOOKBACK_MINUTES
+    window = int(round(gap + config.NEWS_WINDOW_MARGIN_MINUTES))
+    return max(config.NEWS_LOOKBACK_MINUTES, min(config.NEWS_LOOKBACK_MAX_MINUTES, window))
+
+
 def minutes_since_last_run(state: dict, now_utc: datetime) -> Optional[float]:
     """None when there is no previous run to compare against."""
     last = outcomes.parse_utc((state.get("last_run_utc") or "").strip())
@@ -166,8 +178,10 @@ def run(dry_run: bool = False, force: bool = False) -> int:
 
     # 1-2. News, cleaned and deduped against what we have already logged.
     known_hashes = client.recent_hashes(config.DEDUPE_LOOKBACK_ROWS)
-    fresh = news.collect(known_hashes, now_utc)
-    print("new headlines: %d" % len(fresh))
+    window = news_window_minutes(gap)
+    notes.append("news_window_min=%d" % window)
+    fresh = news.collect(known_hashes, now_utc, lookback_minutes=window)
+    print("news window: %d minutes, new headlines: %d" % (window, len(fresh)))
 
     # 3. Brent price. A blank price never stops the run.
     quote = price_client.fetch_brent()
@@ -184,7 +198,8 @@ def run(dry_run: bool = False, force: bool = False) -> int:
     scored = None
     usage = None
     if fresh:
-        scored, usage = scorer.score_news([h.as_dict() for h in fresh], recent_signals)
+        scored, usage = scorer.score_news(
+            [h.as_dict() for h in fresh], recent_signals, window_minutes=window)
         if usage:
             notes.append(usage.as_note())
         if scored is None:
@@ -342,6 +357,18 @@ def run(dry_run: bool = False, force: bool = False) -> int:
     # Last, so nothing above is lost: a run that scored nothing is still a run
     # whose headlines, price and backfill are worth keeping.
     written = all_signals + [signal_row]
+
+    # The race leaderboard, from rows already in memory. It must never fail or
+    # slow a run, so it skips the shifted null and swallows any error.
+    if not dry_run:
+        try:
+            from scripts import leaderboard
+
+            table = leaderboard.standings(written, with_luck=False)
+            if table["started"]:
+                leaderboard.write_tab(client, table)
+        except Exception as exc:  # noqa: BLE001 - never fail the run over a side table
+            print("leaderboard skipped: %s: %s" % (type(exc).__name__, exc))
 
     # Rows with no new headlines never called the scorer, so a quiet run in
     # the middle of an outage must not reset the streak.
