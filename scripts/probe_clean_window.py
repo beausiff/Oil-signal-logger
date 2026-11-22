@@ -66,7 +66,7 @@ def self_report():
 def gdelt_get(params):
     url = GDELT + "?" + urllib.parse.urlencode(params)
     status, body = None, ""
-    for attempt in range(2):
+    for attempt in range(4):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "research-probe"})
             with urllib.request.urlopen(req, timeout=60) as r:
@@ -75,9 +75,9 @@ def gdelt_get(params):
             status, body = exc.code, exc.read().decode("utf-8", errors="replace")
         except OSError as exc:
             status, body = "error:%s" % type(exc).__name__, ""
-        if status == 429 and attempt == 0:
-            say("  (429 rate limited, pausing 15s and retrying once)")
-            time.sleep(15)
+        if status == 429 and attempt < 3:
+            say("  (429 rate limited, pausing 30s and retrying)")
+            time.sleep(30)
             continue
         break
     return status, body
