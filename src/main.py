@@ -1,7 +1,8 @@
 """One hourly run of the oil news signal logger.
 
-Log only. No broker, no real orders. Paper positions exist as rows in a Google
-Sheet and nothing else.
+Paper positions live as rows in a Google Sheet. With BROKER_MODE=demo the same
+position is mirrored onto an IG demo account (fake money, see src/broker.py).
+There is no live trading mode.
 
     python -m src.main             # live run
     python -m src.main --dry-run   # prints everything, writes nothing
@@ -14,7 +15,7 @@ import sys
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from . import config, news, outcomes, price as price_client, rules, scorer, sheets, weekend
+from . import broker, config, news, outcomes, price as price_client, rules, scorer, sheets, weekend
 from .rules import FLAT, Position
 from .sheets import HEADLINES, SIGNALS, STATE, TRADES
 
@@ -285,6 +286,14 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             "pnl_pct": pnl_pct,
             "hours_held": hours_held,
         }
+
+    # 6b. Mirror onto the IG demo account. Off by default, never fails the run.
+    # Skipped while the market is shut: the next open run catches up.
+    if not dry_run and market_open:
+        broker_note = broker.sync(new_position.side, allow_open=decision.action in ("buy", "sell"))
+        if broker_note:
+            notes.append(broker_note)
+            print(broker_note)
 
     # 7. Write.
     if fresh:
