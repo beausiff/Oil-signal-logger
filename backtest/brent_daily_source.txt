@@ -1,0 +1,2 @@
+FRED DCOILBRENTEU (EIA Brent spot), downloaded with curl
+rows=1276 first=2021-11-01 last=2026-11-17

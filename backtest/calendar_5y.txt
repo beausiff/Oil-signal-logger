@@ -1,0 +1,39 @@
+BOT 5 CALENDAR ONLY, daily Brent backtest
+Data: backtest/brent_daily.csv, 1276 prices, 2021-11-01 to 2026-11-17
+Rule: each ISO week buy at the first price, sell at the last price of the week; weeks with fewer than 2 prices skipped; spread $0.05/bbl charged via rules.pnl; stop variant = 3.0% trailing stop on daily prices.
+
+== 2021 ==
+no stop      weeks   9  winners   2 ( 22.2%)  total $  -11.99/bbl  sum %   -14.14  avg %  -1.571  worst %  -10.68  best %   +6.64
+3% stop      weeks   9  winners   2 ( 22.2%)  total $  -13.17/bbl  sum %   -15.51  avg %  -1.723  worst %  -10.68  best %   +6.64
+== 2022 ==
+no stop      weeks  52  winners  28 ( 53.8%)  total $  +15.48/bbl  sum %   +26.97  avg %  +0.519  worst %   -9.00  best %  +20.11
+3% stop      weeks  52  winners  26 ( 50.0%)  total $  -13.95/bbl  sum %    +1.58  avg %  +0.030  worst %   -9.68  best %  +13.13
+== 2023 ==
+no stop      weeks  52  winners  25 ( 48.1%)  total $   -5.93/bbl  sum %    -4.39  avg %  -0.084  worst %  -10.91  best %   +7.59
+3% stop      weeks  52  winners  24 ( 46.2%)  total $  -19.48/bbl  sum %   -19.77  avg %  -0.380  worst %   -7.62  best %   +7.59
+== 2024 ==
+no stop      weeks  53  winners  30 ( 56.6%)  total $  +11.61/bbl  sum %   +17.92  avg %  +0.338  worst %   -7.35  best %   +9.56
+3% stop      weeks  53  winners  30 ( 56.6%)  total $  +12.14/bbl  sum %   +18.90  avg %  +0.357  worst %   -6.17  best %   +9.56
+== 2025 ==
+no stop      weeks  52  winners  22 ( 42.3%)  total $  -13.68/bbl  sum %   -16.71  avg %  -0.321  worst %  -11.55  best %  +10.50
+3% stop      weeks  52  winners  20 ( 38.5%)  total $  -13.77/bbl  sum %   -18.26  avg %  -0.351  worst %   -7.08  best %  +10.50
+== 2026 ==
+no stop      weeks  46  winners  25 ( 54.3%)  total $  +51.21/bbl  sum %   +74.52  avg %  +1.620  worst %  -20.04  best %  +23.89
+3% stop      weeks  46  winners  17 ( 37.0%)  total $   +5.28/bbl  sum %   +23.24  avg %  +0.505  worst %  -14.53  best %  +23.89
+
+== Whole period ==
+no stop      weeks 264  winners 132 ( 50.0%)  total $  +46.70/bbl  sum %   +84.17  avg %  +0.319  worst %  -20.04  best %  +23.89
+             max drawdown of cumulative $ P&L: $77.45/bbl
+3% stop      weeks 264  winners 119 ( 45.1%)  total $  -42.95/bbl  sum %    -9.83  avg %  -0.037  worst %  -14.53  best %  +23.89
+             max drawdown of cumulative $ P&L: $66.38/bbl
+
+Buy and hold, same period: $+8.43/bbl (+9.98%), 2021-11-01 84.51 to 2026-11-17 92.94
+
+Luck check on average weekly % return, whole period (10000 bootstrap resamples, seed 20261122)
+no stop  avg +0.3188%  std error 0.3317  t = +0.96  95% bootstrap interval [-0.3284%, +0.9647%]
+3% stop  avg -0.0372%  std error 0.2985  t = -0.12  95% bootstrap interval [-0.6220%, +0.5510%]
+
+Weekend plus Monday decomposition: buy and hold $+8.43 = calendar bot gross (before spread) $+59.90 + last-price-to-next-first-price (weekend and Monday) $-51.47
+Note: the last week in the data (2026-11-16 to 2026-11-17) is incomplete, so its exit is the latest price, not a Friday.
+
+Sanity check 2026-09-17 to 2026-11-22: daily-data Bot 5 made $+3.41/bbl over 10 weeks (last daily price 2026-11-17); live logged rows via calendar_only made $+3.02/bbl (recorded earlier as +3.02 over 10 weeks). Verdict: same ballpark (within $1.00/bbl); difference $0.39. Exact match is not expected: daily spot prices versus hourly logged quotes.

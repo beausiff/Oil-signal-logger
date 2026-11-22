@@ -98,7 +98,15 @@ SOURCES = [
 
 
 def main() -> int:
-    for name, fn in SOURCES:
+    sources = SOURCES
+    if len(sys.argv) == 3 and sys.argv[1] == "--from-fred-csv":
+        # A FRED fredgraph.csv already downloaded by other means (e.g. curl).
+        path = sys.argv[2]
+        with open(path) as fh:
+            text = fh.read()
+        sources = [("FRED DCOILBRENTEU (EIA Brent spot), downloaded with curl",
+                    lambda: parse_two_columns(text))]
+    for name, fn in sources:
         try:
             rows = fn()
         except Exception as exc:  # network, HTTP, parse: try the next source
