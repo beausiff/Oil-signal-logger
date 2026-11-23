@@ -126,3 +126,15 @@ def test_fetch_spacing_and_retries():
 
     assert g.fetch_day(date(2026, 10, 1), session=Dead(), sleep=lambda s: None, clock=lambda: now[0]) is None
     assert Dead.n == 4   # first try + 3 retries
+
+
+def test_build_report_tolerates_rows_without_optional_fields():
+    rows = [{"run_utc": "2026-09-28T00:50:00+00:00", "status": "no_headlines", "day_raw_max": 100},
+            {"run_utc": "2026-09-28T07:01:00+00:00", "status": "ok", "live_score": "1", "google_score": "2",
+             "live_confidence": "low", "google_confidence": "low", "live_headlines": "13",
+             "google_headlines": "18", "title_overlap": "", "cost_usd": "0.01",
+             "top_live_titles": "", "top_google_titles": "x", "day_raw_max": 38}]
+    text = g.build_report(rows, 56, 1, [])
+    assert "rows with zero headlines in window: 1" in text
+    assert "hit 100 items (possible truncation cap): 1" in text
+    assert "VERDICT:" in text

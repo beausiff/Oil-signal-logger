@@ -268,13 +268,13 @@ def build_report(rows: List[dict], sampled: int, calls_used: int, depth: List[di
         lh = [float(x["live_headlines"]) for x in ok]
         gh = [float(x["google_headlines"]) for x in ok]
         w("average headline count: live %.1f, Google dated %.1f" % (sum(lh) / n, sum(gh) / n))
-        ov = [float(x["title_overlap"]) for x in ok if x["title_overlap"] not in ("", None)]
+        ov = [float(x["title_overlap"]) for x in ok if x.get("title_overlap") not in ("", None, "")]
         w("average title overlap with logged live headlines (share with a >=60%% Jaccard match): %s"
           % ("%.0f%%" % (100 * sum(ov) / len(ov)) if ov else "n/a"))
     w("")
     w("VERDICT: %s" % verdict(r, (sum(d <= 2 for d in diffs) / n) if n else 0.0, n))
     w("")
-    spend = sum(_f(x["cost_usd"]) or 0.0 for x in rows)
+    spend = sum(_f(x.get("cost_usd")) or 0.0 for x in rows)
     w("total model requests counted against the cap: %d of %d   model spend (scorer usage cost): $%.4f"
       % (calls_used, MAX_CALLS, spend))
     w("")
@@ -282,7 +282,7 @@ def build_report(rows: List[dict], sampled: int, calls_used: int, depth: List[di
     for x in evenly(ok, 5):
         w("%s  live %+d (%s)  google %+d (%s)  overlap %s" % (
             x["run_utc"][:16], int(float(x["live_score"])), x["live_confidence"],
-            int(float(x["google_score"])), x["google_confidence"], x["title_overlap"]))
+            int(float(x["google_score"])), x["google_confidence"], x.get("title_overlap", "")))
         w("  live:   " + (x["top_live_titles"] or "(none)"))
         w("  google: " + (x["top_google_titles"] or "(none)"))
     w("")
