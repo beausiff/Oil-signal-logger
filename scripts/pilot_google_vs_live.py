@@ -183,8 +183,13 @@ def depth_stats(day: date, headlines: Sequence[news.Headline], raw_count: int) -
     on_day = sum(1 for h in headlines if h.published_utc[:10] == day.isoformat())
     on_day_pt = sum(1 for h in headlines
                     if datetime.fromisoformat(h.published_utc).astimezone(DAY_TZ).date() == day)
+    at_midnight = sum(1 for h in headlines
+                      if datetime.fromisoformat(h.published_utc).astimezone(DAY_TZ).time().replace(microsecond=0)
+                      == datetime.min.time())
+    sub_hour = sum(1 for h in headlines if datetime.fromisoformat(h.published_utc).minute
+                   or datetime.fromisoformat(h.published_utc).second)
     return {"date": day.isoformat(), "items": raw_count, "parsed": len(headlines), "on_day": on_day,
-            "on_day_pt": on_day_pt,
+            "on_day_pt": on_day_pt, "at_pt_midnight": at_midnight, "with_minutes": sub_hour,
             "earliest": pubs[0] if pubs else "", "latest": pubs[-1] if pubs else "",
             "samples": [(h.title, h.source) for h in headlines[:3]]}
 
@@ -307,6 +312,8 @@ def build_report(rows: List[dict], sampled: int, calls_used: int, depth: List[di
             continue
         w("%s  items returned: %d   pubDate on requested day: %d (UTC date) / %d (Pacific date)   earliest: %s   latest: %s" % (
             d["date"], d["items"], d["on_day"], d["on_day_pt"], d["earliest"] or "-", d["latest"] or "-"))
+        w("    pubDate at exactly Pacific midnight (day-level stamp): %d   pubDate with non-zero minutes/seconds: %d"
+          % (d["at_pt_midnight"], d["with_minutes"]))
         for title, source in d["samples"]:
             w("    - %s  [%s]" % (title, source))
     return "\n".join(out) + "\n"
