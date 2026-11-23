@@ -41,34 +41,42 @@ total model requests counted against the cap: 15 of 60   model spend (scorer usa
 
 == PART B: depth check (single day dated query, no scoring) ==
 2026-03-02  items returned: 21   pubDate on requested day: 7 (UTC date) / 7 (Pacific date)   earliest: 2026-03-02T08:00:00+00:00   latest: 2026-03-03T08:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 21   pubDate with non-zero minutes/seconds: 0
     - International - Analysis - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
     - Iran Conflict: Seven Takeaways for Investors  [Morgan Stanley]
     - How Will the Iran Conflict Impact Oil Prices?  [Goldman Sachs]
 2026-03-30  items returned: 10   pubDate on requested day: 3 (UTC date) / 3 (Pacific date)   earliest: 2026-03-30T07:00:00+00:00   latest: 2026-03-31T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 10   pubDate with non-zero minutes/seconds: 0
     - U.S. crude oil production rose in 2025, setting new record - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
     - WTI, June Brent crude futures settle down on reports that Iran may be ready to end war  [Reuters]
     - Brent oil price surges more than 60% in March, biggest monthly gain dating back to 1988  [CNBC]
 2026-04-27  items returned: 6   pubDate on requested day: 2 (UTC date) / 2 (Pacific date)   earliest: 2026-04-27T07:00:00+00:00   latest: 2026-04-28T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 6   pubDate with non-zero minutes/seconds: 0
     - Oil ends up nearly 3% as Hormuz disruption outweighs UAE OPEC exit  [Reuters]
     - Oil prices rise despite Iran’s proposal to reopen Strait of Hormuz  [Al Jazeera]
     - Journalist killed in Israeli attack in Lebanon, her colleague recovers from injuries  [The World from PRX]
 2026-05-25  items returned: 5   pubDate on requested day: 2 (UTC date) / 2 (Pacific date)   earliest: 2026-05-25T07:00:00+00:00   latest: 2026-05-26T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 5   pubDate with non-zero minutes/seconds: 0
     - Oil tumbles nearly 7% as US and Iran seen moving closer to deal  [Reuters]
     - Oil price rises back above $100 a barrel as energy market may be past ‘point of no return’  [The Guardian]
     - Brent oil jumps more than 3% after Iran vows to retaliate for U.S. strikes  [CNBC]
 2026-06-23  items returned: 5   pubDate on requested day: 2 (UTC date) / 2 (Pacific date)   earliest: 2026-06-23T07:00:00+00:00   latest: 2026-06-24T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 5   pubDate with non-zero minutes/seconds: 0
     - UAE’s exit from OPEC+ reduced the group’s share of crude oil production and capacity - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
     - Brent settles at lowest since before start of Iran war as more tankers exit Hormuz  [Reuters]
     - Senate for first time approves a war powers resolution in a rebuke to Trump over Iran conflict  [AP News]
 2026-07-21  items returned: 11   pubDate on requested day: 4 (UTC date) / 4 (Pacific date)   earliest: 2026-07-21T07:00:00+00:00   latest: 2026-07-22T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 11   pubDate with non-zero minutes/seconds: 0
     - Brent crude crosses $100 after tankers reportedly struck off Saudi Arabia  [CNBC]
     - Why oil prices haven't gone crazy despite 5 months of US-Iran war  [Reuters]
     - A new front is opening in the Iran war. Oil faces ‘no way out’ | CNN Business  [CNN]
 2026-08-18  items returned: 13   pubDate on requested day: 5 (UTC date) / 5 (Pacific date)   earliest: 2026-08-18T07:00:00+00:00   latest: 2026-08-19T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 12   pubDate with non-zero minutes/seconds: 1
     - US hits ICC president and senior prosecutor with sanctions in another move against the court  [AP News]
     - Saudi Pro League  [FOX One]
     - Iran labels California its ‘new territory’ after Trump’s Hormuz claim  [Anadolu Ajansı]
 2026-09-15  items returned: 16   pubDate on requested day: 7 (UTC date) / 7 (Pacific date)   earliest: 2026-09-15T07:00:00+00:00   latest: 2026-09-16T07:00:00+00:00
+    pubDate at exactly Pacific midnight (day-level stamp): 16   pubDate with non-zero minutes/seconds: 0
     - Saudi cancels some oil cargoes after pipeline hit, top buyer chasing alternatives  [Reuters]
     - House votes for a third time to end the Iran war as conflict drags on  [AP News]
     - Reports: Iran War has cost the US more than $38 billion  [KCRA]
