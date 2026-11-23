@@ -20,7 +20,9 @@ backtest/pilot_google_calls_used.txt and enforced by a wrapper around the
 client, so the 61st request is refused in code.
 
 `before:` is treated as EXCLUSIVE, so a single day D is queried as
-`after:D before:D+1`. Part B shows from real data whether that holds.
+`after:D before:D+1`. The first run showed a day feed spans D 07:00Z to D+1 07:00Z
+(08:00Z in winter), i.e. the operators use US Pacific days, so the day ranges are
+computed in America/Los_Angeles, not UTC.
 
 VERDICT RULE (fixed before running):
   GOOD ENOUGH:      Pearson r >= 0.60 AND share of pairs within 2 points >= 70%
@@ -39,6 +41,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from src import config, news, stats
 from scripts.pilot_archive_vs_live import (  # reused helpers
@@ -100,9 +103,15 @@ def dated_url(day: date) -> str:
     return "%s?%s" % (config.GOOGLE_NEWS_RSS, urlencode(params))
 
 
+# Measured on the first run: a dated single-day feed for D holds pubDates from
+# D 07:00Z (08:00Z in winter) to D+1 07:00Z, so Google reads after:/before: as
+# US Pacific calendar days (the feed is gl=US). Days are therefore Pacific days.
+DAY_TZ = ZoneInfo("America/Los_Angeles")
+
+
 def window_days(start: datetime, end: datetime) -> List[date]:
-    """UTC calendar days a window touches: one, or two when it crosses midnight."""
-    d0, d1 = start.astimezone(timezone.utc).date(), end.astimezone(timezone.utc).date()
+    """Google (Pacific) calendar days a window touches: one, or two when it crosses Pacific midnight."""
+    d0, d1 = start.astimezone(DAY_TZ).date(), end.astimezone(DAY_TZ).date()
     out, d = [], d0
     while d <= d1:
         out.append(d)
@@ -172,7 +181,10 @@ def depth_dates() -> List[date]:
 def depth_stats(day: date, headlines: Sequence[news.Headline], raw_count: int) -> dict:
     pubs = sorted(h.published_utc for h in headlines)
     on_day = sum(1 for h in headlines if h.published_utc[:10] == day.isoformat())
+    on_day_pt = sum(1 for h in headlines
+                    if datetime.fromisoformat(h.published_utc).astimezone(DAY_TZ).date() == day)
     return {"date": day.isoformat(), "items": raw_count, "parsed": len(headlines), "on_day": on_day,
+            "on_day_pt": on_day_pt,
             "earliest": pubs[0] if pubs else "", "latest": pubs[-1] if pubs else "",
             "samples": [(h.title, h.source) for h in headlines[:3]]}
 
@@ -241,7 +253,7 @@ def build_report(rows: List[dict], sampled: int, calls_used: int, depth: List[di
       "NOT GOOD ENOUGH = r < 0.40; BORDERLINE = anything else.")
     w("Context: " + RETEST + ".")
     w("Query: live terms with ` after:D before:D+1` appended (the live `when:1d` is dropped, it cannot be "
-      "combined with absolute dates); `before:` treated as exclusive. Window = 90 minutes ending at run_utc.")
+      "combined with absolute dates); `before:` treated as exclusive. Window = 90 minutes ending at run_utc. Days are US Pacific days (measured: Google reads the operators in Pacific time).")
     w("")
     w("== PART A: score comparison ==")
     w("rows sampled (rows in the sample): %d" % sampled)
@@ -293,8 +305,8 @@ def build_report(rows: List[dict], sampled: int, calls_used: int, depth: List[di
         if d.get("failed"):
             w("%s  FETCH FAILED" % d["date"])
             continue
-        w("%s  items returned: %d   pubDate on requested day: %d   earliest: %s   latest: %s" % (
-            d["date"], d["items"], d["on_day"], d["earliest"] or "-", d["latest"] or "-"))
+        w("%s  items returned: %d   pubDate on requested day: %d (UTC date) / %d (Pacific date)   earliest: %s   latest: %s" % (
+            d["date"], d["items"], d["on_day"], d["on_day_pt"], d["earliest"] or "-", d["latest"] or "-"))
         for title, source in d["samples"]:
             w("    - %s  [%s]" % (title, source))
     return "\n".join(out) + "\n"

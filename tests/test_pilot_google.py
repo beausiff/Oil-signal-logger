@@ -45,9 +45,14 @@ def test_window_headlines_dedupes_and_caps_newest_first():
 
 
 def test_window_days_single_and_midnight_crossing():
+    # Google days are Pacific days (PDT = UTC-7 in October)
     assert g.window_days(dt("2026-10-05T10:30:00"), RUN) == [date(2026, 10, 5)]
-    run = dt("2026-09-28T00:50:50")
+    run = dt("2026-09-28T00:50:50")          # 17:50 PDT on the 27th, window starts 16:20 PDT
+    assert g.window_days(run - timedelta(minutes=90), run) == [date(2026, 9, 27)]
+    run = dt("2026-09-28T07:01:00")          # window 05:31Z-07:01Z crosses Pacific midnight (07:00Z)
     assert g.window_days(run - timedelta(minutes=90), run) == [date(2026, 9, 27), date(2026, 9, 28)]
+    run = dt("2026-01-15T08:20:00")          # winter: PST = UTC-8, midnight at 08:00Z
+    assert g.window_days(run - timedelta(minutes=90), run) == [date(2026, 1, 14), date(2026, 1, 15)]
 
 
 def test_dated_query_before_is_exclusive_upper_bound():
