@@ -1,0 +1,74 @@
+PILOT: Google News RSS with date operators versus the live feed
+Rule (fixed before running): GOOD ENOUGH = Pearson r >= 0.60 AND >= 70% of pairs within 2 points; NOT GOOD ENOUGH = r < 0.40; BORDERLINE = anything else.
+Context: model test-retest on identical headlines (measured earlier): r = 0.976, 83% identical, 97% within one point.
+Query: live terms with ` after:D before:D+1` appended (the live `when:1d` is dropped, it cannot be combined with absolute dates); `before:` treated as exclusive. Window = 90 minutes ending at run_utc.
+
+== PART A: score comparison ==
+rows sampled (rows in the sample): 56
+pairs scored: 5 of 56 rows sampled
+rows with zero headlines in window: 51
+rows skipped for Google fetch failure: 0
+rows not scored for model failure or spend cap: 0
+rows not yet processed: 0
+rows where a raw day feed hit 100 items (possible truncation cap): 7
+Pearson r (google vs live): 0.332
+Fisher 95% interval for r: [-0.778, 0.939]
+mean absolute difference: 1.40 points
+identical: 20%   within 1: 60%   within 2: 80%
+average headline count: live 10.6, Google dated 28.2
+average title overlap with logged live headlines (share with a >=60% Jaccard match): 12%
+
+VERDICT: NOT GOOD ENOUGH
+
+total model requests counted against the cap: 10 of 60   model spend (scorer usage cost): $0.0553
+
+== 5 example rows (evenly spaced through the pairs) ==
+2026-09-28T07:01  live +1 (low)  google +0 (low)  overlap 0.000
+  live:   Tullow Oil swings to positive free cash flow as Ghana output, higher oil prices drive growth | European Gas Steadies as Traders Eye Mixed Signals on Iran | Treasury Yields Rise Amid U.S.-Iran Diplomatic Stalemate
+  google: Mideast oil exports rebound in September as Saudi Arabia boosts shipments | Iran touts Hormuz attacks as oil flows increase despite tensions | Trump offers Iran economic relief for concrete nuclear concessions
+2026-10-03T08:13  live +2 (low)  google +2 (medium)  overlap 0.000
+  live:   As Saudi Arabia steps up war against Houthis, Pakistan set to play support role | Israeli man used ChatGPT in alleged Iran espionage case, prosecutor reveals | After US exit, Iran gains space in Iraq and a harder balancing act - al-monitor.com
+  google: Iran Is Losing Some of Its Leverage Over the Strait of Hormuz | U.S.-Russia Talks on Ukraine Now Involve an Oil Deal Tied to Trump Allies | G7 to release 100 million barrels of oil and diesel, will it curb prices?
+2026-10-04T07:00  live +2 (low)  google +1 (low)  overlap 0.300
+  live:   Iran rejects US proposals as ‘unilateral demands’: Ghalibaf | Former Liverpool star claims rivals should suffer harshest sanctions | Iran says Strait of Hormuz will not reopen until conditions are met, Nournews reports
+  google: Press Releases - Organization of the Petroleum Exporting Countries | Saudi Arabia unexpectedly cuts November oil prices to Asia to 6-year lows | Oil prices fall as Middle East crude exports rise, G7 to release stocks
+2026-10-05T07:09  live +1 (low)  google -2 (medium)  overlap 0.182
+  live:   Iran News in Brief – October 5, 2026 - National Council of Resistance of Iran | US refusal on Houthis pushes Saudi Arabia toward new military alliances | Ithaca Energy to Buy Offshore Canada Oil Assets From Suncor Energy for Up to $1.1 Billion
+  google: Iran Update, October 5, 2026 | More Oil, Same War: Why Increased Exports Aren’t a Sign of Iran’s Imminent Defeat | Crude oil prices and refinery margins generally increased throughout the third quarter - U.S. Energy Information Administration (EIA) (.gov)
+2026-10-16T07:16  live +1 (low)  google +3 (medium)  overlap 0.100
+  live:   Oil Prices Fall as Traders Weigh IEA Reserve Releases, Hormuz Risks | The $100 question: Which way will crude oil break? | Major U.S. strikes against Iran before midterms ‘extremely unlikely’: Analyst
+  google: Brent oil touches $110 as Iran escalates Hormuz attacks, Ukraine vows to hit Russian refineries | September 2026 — Monthly analysis of Russian fossil fuel exports and sanctions - Centre for Research on Energy and Clean Air | US considers removing sanctions on some shadow fleet vessels to cut freight rates, official says
+
+== PART B: depth check (single day dated query, no scoring) ==
+2026-03-02  items returned: 21   pubDate on requested day: 7   earliest: 2026-03-02T08:00:00+00:00   latest: 2026-03-03T08:00:00+00:00
+    - International - Analysis - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
+    - Iran Conflict: Seven Takeaways for Investors  [Morgan Stanley]
+    - How Will the Iran Conflict Impact Oil Prices?  [Goldman Sachs]
+2026-03-30  items returned: 10   pubDate on requested day: 3   earliest: 2026-03-30T07:00:00+00:00   latest: 2026-03-31T07:00:00+00:00
+    - U.S. crude oil production rose in 2025, setting new record - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
+    - WTI, June Brent crude futures settle down on reports that Iran may be ready to end war  [Reuters]
+    - Brent oil price surges more than 60% in March, biggest monthly gain dating back to 1988  [CNBC]
+2026-04-27  items returned: 69   pubDate on requested day: 23   earliest: 2026-04-27T07:00:00+00:00   latest: 2026-04-28T07:00:00+00:00
+    - Here's what to know about ceasefire negotiations between the U.S. and Iran  [PBS]
+    - What you need to know about the U.S. war on Iran  [American Friends Service Committee]
+    - Another oil crisis is here. How will American drivers respond?  [Brookings]
+2026-05-25  items returned: 5   pubDate on requested day: 2   earliest: 2026-05-25T07:00:00+00:00   latest: 2026-05-26T07:00:00+00:00
+    - Oil tumbles nearly 7% as US and Iran seen moving closer to deal  [Reuters]
+    - Oil price rises back above $100 a barrel as energy market may be past ‘point of no return’  [The Guardian]
+    - Brent oil jumps more than 3% after Iran vows to retaliate for U.S. strikes  [CNBC]
+2026-06-23  items returned: 5   pubDate on requested day: 2   earliest: 2026-06-23T07:00:00+00:00   latest: 2026-06-24T07:00:00+00:00
+    - UAE’s exit from OPEC+ reduced the group’s share of crude oil production and capacity - U.S. Energy Information Administration (EIA) (.gov)  [U.S. Energy Information Administration (EIA) (.gov)]
+    - Brent settles at lowest since before start of Iran war as more tankers exit Hormuz  [Reuters]
+    - Senate for first time approves a war powers resolution in a rebuke to Trump over Iran conflict  [AP News]
+2026-07-21  items returned: 11   pubDate on requested day: 4   earliest: 2026-07-21T07:00:00+00:00   latest: 2026-07-22T07:00:00+00:00
+    - Brent crude crosses $100 after tankers reportedly struck off Saudi Arabia  [CNBC]
+    - Why oil prices haven't gone crazy despite 5 months of US-Iran war  [Reuters]
+    - What to know about Iran's Pickaxe Mountain, home to an underground nuclear site threatened by Trump  [AP News]
+2026-08-18  items returned: 13   pubDate on requested day: 5   earliest: 2026-08-18T07:00:00+00:00   latest: 2026-08-19T07:00:00+00:00
+    - US hits ICC president and senior prosecutor with sanctions in another move against the court  [AP News]
+    - Saudi Pro League  [FOX One]
+    - USS Lincoln wasn't resupplied because Hegseth 'hid' that Iran destroyed main U.S. base: Rohde  [MS NOW]
+2026-09-15  items returned: 16   pubDate on requested day: 7   earliest: 2026-09-15T07:00:00+00:00   latest: 2026-09-16T07:00:00+00:00
+    - Saudi cancels some oil cargoes after pipeline hit, top buyer chasing alternatives  [Reuters]
+    - House votes for a third time to end the Iran war as conflict drags on  [AP News]
+    - Reports: Iran War has cost the US more than $38 billion  [KCRA]
