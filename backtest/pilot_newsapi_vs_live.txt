@@ -1,0 +1,90 @@
+PILOT: NewsAPI.ai (Event Registry) versus the live Google News RSS feed
+Rule (fixed before running): GOOD ENOUGH = Pearson r >= 0.60 AND >= 70% of pairs within 2 points; NOT GOOD ENOUGH = r < 0.40; BORDERLINE = anything else; NO VERDICT = fewer than 30 pairs.
+Context: model test-retest on identical headlines (measured earlier): r = 0.976, 83% identical, 97% within one point.
+Query: live search terms as keywords (OR, title only, English, skipDuplicates), one UTC day per fetch, newest first, up to 30 pages of 100 per day. Window: v2 rows = live rule (gap + 10 min, clamped 90..720), other rows 90 min, ending at run_utc.
+
+rows sampled: 56
+pairs scored: 56 of 56 rows sampled
+rows with zero headlines in window: 0
+rows affected by truncated days (window touches a day cut short by the page limit): 0
+  of which the window starts before that day's oldest fetched article (data really missing): 0
+rows skipped for NewsAPI.ai fetch failure or request cap: 0
+rows not scored for model failure or spend cap: 0
+rows not yet processed: 0
+Pearson r (newsapi vs live): 0.580
+Fisher 95% interval for r: [0.374, 0.731]
+mean absolute difference: 1.29 points
+identical: 32%   within 1: 77%   within 2: 86%
+mean score: live 2.02, NewsAPI 2.09
+average headline count: live 22.1; NewsAPI.ai 40.0 after dedupe and the 40 cap, 111.0 in window before them
+average title overlap with logged live headlines (share with a >=60% Jaccard match): 20%
+
+VERDICT: BORDERLINE
+
+== article data (all cached articles of the sampled days: 30291) ==
+publish time used: dateTimePub for 30291 articles, dateTime fallback for 0; dateTimePub missing on 0 (0.0%)
+share with minute level publish times (not exactly midnight): 96.9%
+median lag dateTime minus dateTimePub: 4.2 min (n=30291)
+top 15 sources by article count:
+    475  The Times of India
+    339  Arab News
+    325  UrduPoint
+    319  PressTV
+    307  Anadolu Ajansı
+    269  EconoTimes
+    248  Investing.com
+    246  Scienmag: Latest Science and Health News
+    237  Ajel
+    232  The Times of Israel
+    225  Middle East Eye
+    224  Market Screener
+    222  Economic Times
+    220  Al Mayadeen English
+    217  IRNA English
+  Reuters: present (Reuters 194, reutersevents.com 1)
+  Bloomberg: present (Bloomberg Business 192, news.bloomberglaw.com 25)
+  CNBC: present (cnbctv18.com 99, CNBC Africa 8, CNBC 33)
+  OilPrice.com: present (OilPrice.com 133)
+
+== articles per sampled day (totalResults from the API; fetched; pages; truncated) ==
+2026-11-05  totalResults 2617  fetched 800  pages 8/27  truncated no  oldest fetched 2012-09-11T00:00
+2026-11-06  totalResults 1962  fetched 1962  pages 20/20  truncated no  oldest fetched 2015-03-27T20:00
+2026-11-07  totalResults 1479  fetched 1200  pages 12/15  truncated no  oldest fetched 2015-06-13T20:00
+2026-11-08  totalResults 1477  fetched 1300  pages 13/15  truncated no  oldest fetched 2018-03-09T06:42
+2026-11-09  totalResults 2746  fetched 2000  pages 20/28  truncated no  oldest fetched 2015-05-27T20:00
+2026-11-10  totalResults 3154  fetched 1900  pages 19/32  truncated no  oldest fetched 2017-05-11T04:05
+2026-11-11  totalResults 2407  fetched 600  pages 6/25  truncated no  oldest fetched 2018-03-09T06:42
+2026-11-12  totalResults 2290  fetched 1900  pages 19/23  truncated no  oldest fetched 2004-11-12T20:21
+2026-11-13  totalResults 2094  fetched 2094  pages 21/21  truncated no  oldest fetched 2013-01-19T14:14
+2026-11-14  totalResults 1226  fetched 800  pages 8/13  truncated no  oldest fetched 2017-02-04T20:00
+2026-11-15  totalResults 1233  fetched 600  pages 6/13  truncated no  oldest fetched 2015-05-17T20:00
+2026-11-16  totalResults 2052  fetched 2052  pages 21/21  truncated no  oldest fetched 2001-04-26T08:12
+2026-11-17  totalResults 2526  fetched 2526  pages 26/26  truncated no  oldest fetched 2008-12-17T10:53
+2026-11-18  totalResults 2287  fetched 1900  pages 19/23  truncated no  oldest fetched 2016-12-11T20:00
+2026-11-19  totalResults 2161  fetched 2000  pages 20/22  truncated no  oldest fetched 2003-06-15T23:00
+2026-11-20  totalResults 1769  fetched 500  pages 5/18  truncated no  oldest fetched 2015-06-02T20:00
+2026-11-21  totalResults 1200  fetched 500  pages 5/12  truncated no  oldest fetched 2014-05-28T20:00
+2026-11-22  totalResults 1060  fetched 900  pages 9/11  truncated no  oldest fetched 2013-01-23T01:03
+2026-11-23  totalResults 1748  fetched 1748  pages 18/18  truncated no  oldest fetched 2001-02-23T06:03
+2026-11-24  totalResults 1895  fetched 1895  pages 19/19  truncated no  oldest fetched 2001-04-17T06:31
+2026-11-25  totalResults 1114  fetched 1114  pages 12/12  truncated no  oldest fetched 2001-03-06T05:12
+
+NewsAPI.ai requests used: 330 of 700
+model calls used: 90 of 120   model spend (scorer usage cost): $0.7151
+
+== 5 example rows (evenly spaced through the pairs) ==
+2026-11-05T17:49  live +3 (medium)  newsapi +2 (low)  overlap 0.125  window 90 min
+  live:    Can a ‘drill, baby, drill’ Democrat change Texas oilfield oversight? | Trump administration held talks with Iran on deporting Iranians during the war, court documents show | Minnesota utility regulators discussing whether to allow controversial pipeline to reopen
+  newsapi: Trust market returns to secure oil: India owns stakes in oilfields from Russia to Abu Dhabi, but getting that crude home is another challenge | Russia Keeps Boosting Iran's Military | Pentagon Eyes Unprecedented 75-Year Deal to End China's Rare Earth Stranglehold - by Tom Kool (Oil Price.com
+2026-11-14T10:56  live +4 (medium)  newsapi +3 (medium)  overlap 0.211  window 90 min
+  live:    Rubio Says U.S. Military Action in Iran Unnecessary Due to Economic Damage | Middle East latest: IRGC says two oil tankers caught fire after hitting sea mines in Hormuz | Iran’s Navy Says Oil Tanker on Fire After Hitting Mine in Hormuz - ASHARQ AL-AWSAT English
+  newsapi: Ukraine Says It Hit Oil-Pumping Station in Russia's Samara | Fury as British trade 'faces US meltdown' for Ed Miliband 'Gazaholic' sanctions on Israel | Louisiana: 32 hospitalized after tanker collides with river cruise ship
+2026-11-22T16:05  live +4 (medium)  newsapi +3 (medium)  overlap 0.235  window 90 min
+  live:    IRGC Spokesman Responds to Series of US Drone Shootdowns | Iran launches overnight missile, drone strikes against Bahrain | Live - Saudi Arabia warns Iran of consequences after attack on Bahrain injures two
+  newsapi: Civilian industrial facility struck by Iran | 40 years of resilience: Saudi Arabia continue their historic tradition at the Under-17 World Cup | Africa's strongest military denies rift with Haftar as it grows wary of Turkey's deal with one of its closest African allies over an oil-rich region
+2026-11-24T00:05  live +1 (low)  newsapi +4 (medium)  overlap 0.045  window 90 min
+  live:    Exclusive | U.S. Eyes Iran as Possible Culprit in Dozens of New Cyberattacks Against Ships | Israel leadership rivals clash over Iran threat ahead of coalition talks | Iraq completes Kirkuk oil smuggling probe amid widening crackdown - VOA
+  newsapi: Iran's ambassador to UN condemns Bahrain's 'baseless accusations,' exposes role in US aggression | US eyes Iran as possible culprit in dozens of new cyberattacks against ships, WSJ reports | Trump Iran Ultimatum: Deal by New Year or Strikes Resume
+2026-11-25T12:05  live +1 (low)  newsapi +3 (low)  overlap 0.037  window 90 min
+  live:    Russia’s Elevated Crude Shipments Stoke Global Supply Surplus | Israel alleges Iran pursuing chemical weapons, threatens action | Iran’s Pressure Campaign Is Taking a Growing Toll at Home - Jerusalem Center for Security and Foreign Affairs
+  newsapi: Houthis claim strike on Saudi Arabia's Ras Tanura refinery as satellite images show heavy smoke | Solana's bearish outlook persists amid Fed tightening, prolonged US-Iran stalemate and growth concerns | Indonesia's DSI to Set Palm Oil Export Fee at 0.5% of Value
