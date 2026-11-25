@@ -54,7 +54,7 @@ KEY_ENV = "NEWSAPI_AI_KEY"
 NO_KEY_LINE = "NO KEY: secret NEWSAPI_AI_KEY is not set"
 
 MAX_REQUESTS = int(os.environ.get("PILOT_MAX_REQUESTS") or 300)
-MAX_CALLS = 60
+MAX_CALLS = int(os.environ.get("PILOT_MAX_MODEL_CALLS") or 60)
 MAX_ROWS = 56
 SAMPLE_DAYS = 25               # rows from the last 25 days before the run date
 PAGE_SIZE = 100
@@ -352,7 +352,9 @@ def fetch_day(day: date, need_start: datetime, key: str, cap: RequestCap, sessio
         if page == 1:
             total, pages_total = p["total"], p["pages"]
         articles.extend(slim(a) for a in p["results"])
-        times = [t for t in (art_time(a)[0] for a in p["results"]) if t is not None]
+        # Stop on dateTime (index time), the field the API sorts by. dateTimePub can be years
+        # off on a stray article, which ended the first full run after one page a day.
+        times = [t for t in (news._parse_iso(str(a.get("dateTime") or "")) for a in p["results"]) if t is not None]
         decision = page_decision(page, pages_total, len(p["results"]), min(times) if times else None, need_start)
         if decision == "truncated":
             truncated = True

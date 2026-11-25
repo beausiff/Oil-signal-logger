@@ -40,6 +40,8 @@ jobs:
           # defaults (6 pages a day, 300 requests) would cut most days short.
           PILOT_PAGE_LIMIT: "30"
           PILOT_MAX_REQUESTS: "700"
+          # 34 calls went on the first full run, which a paging bug made invalid.
+          PILOT_MAX_MODEL_CALLS: "120"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
           ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           PROBE_ONLY: ${{ inputs.probe_only }}
