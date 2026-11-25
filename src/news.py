@@ -201,12 +201,62 @@ def filter_and_dedupe(
     return kept[:cap]
 
 
+# What the last collect() saw, for the context tab only (src/context.py).
+# Nothing here feeds back into which headlines are kept.
+LAST_STATS: dict = {}
+
+
+def reset_stats() -> None:
+    LAST_STATS.clear()
+
+
+def fetch_stats(raw: Iterable[Headline], kept: List[Headline], known_hashes: Iterable[str],
+                now_utc: datetime, lookback_minutes: int) -> dict:
+    """Counts behind filter_and_dedupe: what came in and why items were dropped.
+
+    fetched is every headline the feeds returned. outside_window covers those
+    too old (or with no usable date). duplicates_dropped are in window items
+    already logged or repeated within this fetch. over_cap_dropped are unique
+    new items cut by the per run cap.
+    """
+    raw = list(raw)
+    cutoff = now_utc - timedelta(minutes=lookback_minutes)
+    seen = set(known_hashes)
+    outside = duplicates = unique = 0
+    for headline in raw:
+        published = _parse_iso(headline.published_utc)
+        if published is None or published < cutoff:
+            outside += 1
+        elif headline.hash in seen:
+            duplicates += 1
+        else:
+            seen.add(headline.hash)
+            unique += 1
+    return {
+        "fetched": len(raw),
+        "outside_window": outside,
+        "duplicates_dropped": duplicates,
+        "over_cap_dropped": max(0, unique - len(kept)),
+    }
+
+
 def collect(known_hashes: Iterable[str], now_utc: datetime,
             lookback_minutes: int = config.NEWS_LOOKBACK_MINUTES) -> List[Headline]:
+    known_hashes = list(known_hashes)
     raw: List[Headline] = []
+    errors: List[str] = []
     try:
         raw.extend(fetch_google_news())
     except requests.RequestException as exc:  # a dead feed must not kill the run
         print("google news fetch failed: %s" % exc)
+        errors.append("google_news:%s" % type(exc).__name__)
     raw.extend(fetch_gnews())
-    return filter_and_dedupe(raw, known_hashes, now_utc, lookback_minutes=lookback_minutes)
+    kept = filter_and_dedupe(raw, known_hashes, now_utc, lookback_minutes=lookback_minutes)
+    try:
+        stats = fetch_stats(raw, kept, known_hashes, now_utc, lookback_minutes)
+        stats["errors"] = errors
+        LAST_STATS.clear()
+        LAST_STATS.update(stats)
+    except Exception:  # noqa: BLE001 - bookkeeping only, never costs the headlines
+        pass
+    return kept

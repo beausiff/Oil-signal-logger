@@ -97,8 +97,8 @@ Nothing is hardcoded. Nothing is printed to the logs.
 
 Go to the **Actions** tab, pick **setup sheet**, and click **Run workflow**.
 
-This creates `signals`, `trades`, `headlines`, `state` and `weekend_gaps` with the
-right headers. It is safe to run again. No terminal needed.
+This creates `signals`, `trades`, `headlines`, `state`, `weekend_gaps` and `context`
+with the right headers. It is safe to run again. No terminal needed.
 
 ### 7. Switch it on
 
@@ -221,9 +221,90 @@ staying flat costs us anything.
 | `headlines` | every headline used, hashed for dedupe. The audit trail |
 | `state` | a single row holding the current paper position |
 | `weekend_gaps` | one row per weekend: the Friday close, the weekend scores, the Sunday gap, and what holding through would have made |
+| `context` | one wide row per run, keyed by `run_utc`: what the market and the run itself looked like at that moment (see [Context logging](#context-logging)) |
 
 `state` carries one column beyond the original spec, `entry_score`, so a closed
 trade can report the score it opened on.
+
+---
+
+## Context logging
+
+Every run also records context, so later analysis and new replay bots can see
+what the market looked like when a row was written. None of it is used by the
+rules. The score, Bot 1's decision and every older column are worked out before
+any context is looked at, and the locked rules, the scorer prompt and
+`RULES_VERSION` are untouched.
+
+**The fail soft rule.** Every context feed has an 8 second timeout and one try,
+all feeds run side by side inside a 30 second total budget, and any error or
+timeout leaves blank cells. A feed that failed is named in `context_errors`
+with a short reason (never a URL or a key). The context row is written last,
+inside its own try and except, so even a bug in this code cannot stop a run or
+change a score, an action or an existing column.
+
+**4 new columns at the end of `signals`**, appended and never inserted, so the
+first 25 columns keep their positions:
+
+| Column | Meaning |
+| --- | --- |
+| `context_version` | `c1` on every row written by this code, even when every feed failed |
+| `vol20_pct` | sample standard deviation (divides by n minus 1) of the last 20 daily percentage returns of Brent, in percent. `2.31` means 2.31 percent a day. Blank if unavailable |
+| `ma200` | mean of the last 200 daily Brent prices, where the newest point is this run's live price. Blank if there are fewer than 200 points or no live price |
+| `event_flags` | `;` separated tokens, empty when none. `eia_window`: the run is between 4 hours before and 2 hours after Wednesday 10:30 New York time (daylight saving is handled). `opec_day`: the run's UTC date is a listed OPEC+ meeting date or the day before it |
+
+**Daily prices.** The daily series comes from the FRED series `DCOILBRENTEU`
+(no key needed), about 420 days back. FRED runs about 5 days late, so the
+series is extended with the bot's own log: for each later weekday, the last
+`brent_price` logged that day, then the live price as the final point. If FRED
+fails, the committed file `backtest/brent_daily.csv` is used instead. The
+`context` row records which one (`daily_source`) and the last daily date used
+(`daily_last_date`).
+
+**The `context` tab.** One row per run, in this order:
+
+* Run: `run_utc`, `context_version`, `github_run_id`, `github_run_attempt`,
+  `trigger`, `git_sha`, `rules_version`, `model_id`, `prompt_hash` (first 12
+  characters of the SHA 256 of the scorer prompt), `llm_input_tokens`,
+  `llm_output_tokens`, `llm_latency_ms`, `llm_stop_reason`, `llm_attempts`,
+  `price_fetch_ms`, `price_age_min`, `run_duration_ms`.
+* News: `news_window_min`, `news_fetched`, `news_outside_window`,
+  `news_duplicates_dropped`, `news_over_cap_dropped`, `news_new_sent`,
+  `news_distinct_sources`, `news_newest_age_min`, `news_oldest_age_min`,
+  `news_feed_errors`.
+* Price path before the run: `prior_move_1h_pct`, `prior_move_4h_pct`,
+  `prior_move_24h_pct`, `prior_move_72h_pct` (change from the nearest earlier
+  logged row, blank if none is close enough), `hours_since_prev_run`,
+  `prev_score`, `runs_last_24h`.
+* Daily: `daily_source`, `daily_last_date`, `daily_points`,
+  `daily_log_days_added`, `ma50`, `ma200`, `vol20_pct`, `vol60_pct`,
+  `dist_ma200_pct`, `mom_21d_pct`, `mom_63d_pct`, `mom_252d_pct`, `range20_pos`
+  (0 is the 20 day low, 1 the 20 day high).
+* Cross market from FRED, each with its own as of date: `wti_price`,
+  `brent_wti_spread` (on the newest date both series share), `ovx` (oil
+  volatility index), `usd_broad` (broad dollar index).
+* Events: `event_flags`, `hours_to_next_eia`, `days_to_next_opec`. OPEC+ dates
+  live in `data/opec_meetings.csv` (`date,note`). Add a row when a meeting is
+  announced. A missing or empty file just means no `opec_day` flags. The one
+  entry so far is unverified.
+* Weekly fundamentals: `eia_crude_stocks_kbbl`, `eia_crude_stocks_chg_kbbl`,
+  `eia_crude_stocks_period` (US commercial crude stocks from the EIA API),
+  `cftc_mm_net`, `cftc_mm_net_chg`, `cftc_open_interest`, `cftc_report_date`
+  (managed money net position in NYMEX WTI from the CFTC Commitments of
+  Traders). Both use the optional `EIA_API_KEY` secret or, for EIA, the public
+  `DEMO_KEY` when it is unset.
+* `context_errors`: feeds that failed, as `name:reason` separated by `;`.
+
+The tab is created, and any new header cells are added, by each run, and also
+by the `setup sheet` workflow. The weekly backup exports it to `backup/context.csv`.
+
+**Checking the feeds.** The EIA and CFTC parsing was written from their
+documentation and is tested only against made up sample payloads, because those
+two sites are not reachable from every machine. Run the `context_check`
+workflow (Actions tab, Run workflow). It fetches every feed once on a GitHub
+runner, prints OK or FAILED for each with the parsed value, and writes nothing
+to the sheet. `python -m src.main --dry-run` prints the full context row and
+writes nothing.
 
 ---
 

@@ -45,36 +45,142 @@ def replay(rows: List[dict]):
     return _replay_loop(rows)
 
 
-def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: bool = True):
-    """The replay with one of two switches changed. Live rules are untouched.
+# Registered 2026-11-25 with bots 7 to 14. The context features below read the
+# columns the logger started writing under context_version c1.
+VOL_STOP_MIN_PCT = 3.0
+VOL_STOP_MAX_PCT = 15.0
+VOL_SIZE_TARGET = 2.0
+VOL_SIZE_MIN = 0.25
+VOL_SIZE_MAX = 2.0
+EVENT_TOKENS = ("eia_window", "opec_day")
+
+
+def event_tokens(value) -> set:
+    """Semicolon separated event_flags as a set of lower case tokens."""
+    return {t.strip().lower() for t in str(value or "").split(";") if t.strip()}
+
+
+def clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+class ContextCarry:
+    """The most recent non blank context values seen so far in one race.
+
+    The missing input rule: a feature uses the current row's value if it has
+    one, else the latest earlier row's, else it is None and the caller skips
+    that one feature. event_flags is special because a blank cell on a row that
+    was logged with context is a real "no event today", not a missing value, so
+    it counts as known when the row carries a context_version (or any flag).
+    vol20_pct must be above zero to be usable.
+    """
+
+    def __init__(self):
+        self.ma200 = None
+        self.vol20_pct = None
+        self.flags = None   # None until a row has said anything about events
+
+    def observe(self, row: dict) -> None:
+        ma = to_float(row.get("ma200"))
+        if ma is not None:
+            self.ma200 = ma
+        vol = to_float(row.get("vol20_pct"))
+        if vol is not None and vol > 0:
+            self.vol20_pct = vol
+        raw = str(row.get("event_flags") or "").strip()
+        if raw or str(row.get("context_version") or "").strip():
+            self.flags = event_tokens(raw)
+
+
+def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: bool = True, *,
+                   stop_pct: Optional[float] = None, vol_stop_mult: Optional[float] = None,
+                   max_hold_hours: Optional[float] = None, trend_filter: bool = False,
+                   event_standaside: bool = False, vol_size: bool = False,
+                   info: Optional[dict] = None):
+    """The replay with some switches changed. Live rules are untouched.
 
     entry=N overrides the entry threshold to +/-N for this call only, in
     memory, and restores config in a finally. use_reversal=False ignores a
     reversal exit and leaves the position open as a hold would; the Friday
     close, the late weekend close and the trailing stop still apply.
+
+    Added with bots 7 to 14, every one off by default so the defaults are the
+    locked replay exactly:
+
+      stop_pct=8.0          trailing stop width in percent instead of 3.
+      vol_stop_mult=3.0     stop = mult x vol20_pct at entry, clamped to 3..15,
+                            fixed for the life of the trade.
+      max_hold_hours=24     time exit at the first open market row with a price
+                            at or after that many hours from entry, if nothing
+                            else exited first.
+      trend_filter=True     longs only above ma200, shorts only below it.
+      event_standaside=True no new entry on a row flagged eia_window or opec_day.
+      vol_size=True         size = clamp(2 / vol20_pct at entry, 0.25, 2); each
+                            trade records "size". pnl_usd and pnl_pct stay per unit.
+      info={}               filled with missing_input_decisions,
+                            missing_by_feature, blocked_entries and "open" (the
+                            open trade's size and stop width).
+
+    A feature with no value yet is skipped for that decision. Trades carry
+    "stop_pct" only when a stop option is used and "size" only with vol_size, so
+    a default call returns trades identical to what it always did.
     """
+    extras = {"stop_pct": stop_pct, "vol_stop_mult": vol_stop_mult, "max_hold_hours": max_hold_hours,
+              "trend_filter": trend_filter, "event_standaside": event_standaside,
+              "vol_size": vol_size, "info": info}
     if entry is None:
-        return _replay_loop(rows, use_reversal=use_reversal)
+        return _replay_loop(rows, use_reversal=use_reversal, **extras)
     saved = (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE)
     config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = entry, -entry
     try:
-        return _replay_loop(rows, use_reversal=use_reversal)
+        return _replay_loop(rows, use_reversal=use_reversal, **extras)
     finally:
         config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = saved
 
 
-def _replay_loop(rows: List[dict], use_reversal: bool = True):
+def _replay_loop(rows: List[dict], use_reversal: bool = True, *,
+                 stop_pct: Optional[float] = None, vol_stop_mult: Optional[float] = None,
+                 max_hold_hours: Optional[float] = None, trend_filter: bool = False,
+                 event_standaside: bool = False, vol_size: bool = False,
+                 info: Optional[dict] = None):
+    stop_override = stop_pct is not None or vol_stop_mult is not None
+    if not stop_override:
+        return _loop(rows, use_reversal, None, None, max_hold_hours, trend_filter,
+                     event_standaside, vol_size, info)
+    # rules.trailing_stop_hit reads config.TRAILING_STOP_PCT, so the width in
+    # force for the open trade is set there for the call and restored after.
+    saved = config.TRAILING_STOP_PCT
+    try:
+        return _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_filter,
+                     event_standaside, vol_size, info)
+    finally:
+        config.TRAILING_STOP_PCT = saved
+
+
+def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_filter,
+          event_standaside, vol_size, info):
     position = FLAT
     entry_source = ""
     last_price = None
     trades = []
     skipped_no_price = 0
 
+    stop_override = stop_pct is not None or vol_stop_mult is not None
+    default_stop = config.TRAILING_STOP_PCT
+    uses_context = bool(vol_stop_mult is not None or trend_filter or event_standaside or vol_size)
+    carry = ContextCarry()
+    trade_ctx = {}   # per open trade: stop width and size, fixed at entry
+    missing_decisions = 0
+    missing_by_feature = {}
+    blocked = {}
+
     for row in rows:
         when = parse_utc(row.get("run_chicago", ""))
         if when is None:
             continue
         local = when.astimezone(rules.CHICAGO)
+        if uses_context:
+            carry.observe(row)
 
         raw_score = to_float(row.get("score"))
         score = int(raw_score) if raw_score is not None else None
@@ -84,6 +190,8 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True):
             skipped_no_price += 1
 
         before = position
+        if stop_override:
+            config.TRAILING_STOP_PCT = trade_ctx.get("stop_pct", default_stop) if before.is_open else default_stop
         decision = rules.decide(
             score=score, confidence=confidence, position=position,
             now_chicago=local, price=price,
@@ -96,6 +204,42 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True):
             if price is not None and rules.is_market_open(local):
                 position = rules.update_best_price(before, price)
 
+        if (max_hold_hours is not None and decision.action == "hold" and before.is_open
+                and price is not None and rules.is_market_open(local)):
+            # Time exit: only where a stop could also have fired (open market,
+            # a price), and only if no other exit took the row first.
+            held_from = parse_utc(before.entry_utc or "")
+            now_utc = parse_utc(str(row.get("run_utc", "")))
+            if held_from and now_utc and now_utc - held_from >= timedelta(hours=max_hold_hours):
+                decision = rules.Decision(action="close", position_after=FLAT, exit_reason="time",
+                                          notes="time_exit_%sh" % max_hold_hours)
+                position = FLAT
+
+        if decision.action in ("buy", "sell") and uses_context:
+            side = decision.position_after.side
+            skipped = []
+            block = None
+            if trend_filter:
+                if carry.ma200 is None:
+                    skipped.append("ma200")
+                elif (side == "long" and not price > carry.ma200) or (side == "short" and not price < carry.ma200):
+                    block = "trend"
+            if event_standaside:
+                if carry.flags is None:
+                    skipped.append("event_flags")
+                elif carry.flags & set(EVENT_TOKENS):
+                    block = block or "event"
+            if (vol_stop_mult is not None or vol_size) and carry.vol20_pct is None:
+                skipped.append("vol20_pct")
+            if skipped:
+                missing_decisions += 1
+                for name in skipped:
+                    missing_by_feature[name] = missing_by_feature.get(name, 0) + 1
+            if block:
+                blocked[block] = blocked.get(block, 0) + 1
+                decision = rules.Decision(action="flat", position_after=FLAT, notes="blocked_by_%s" % block)
+                position = FLAT
+
         if decision.action in ("buy", "sell"):
             position = Position(
                 side=position.side, entry_price=position.entry_price,
@@ -104,6 +248,15 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True):
                 trade_id="R-%s-%s" % (str(row.get("run_utc", ""))[:16], position.side[0].upper()),
             )
             entry_source = str(row.get("score_source", "")) or "live"
+            trade_ctx = {}
+            if stop_override:
+                width = float(stop_pct) if stop_pct is not None else default_stop
+                if vol_stop_mult is not None and carry.vol20_pct is not None:
+                    width = clamp(vol_stop_mult * carry.vol20_pct, VOL_STOP_MIN_PCT, VOL_STOP_MAX_PCT)
+                trade_ctx["stop_pct"] = width
+            if vol_size:
+                trade_ctx["size"] = (clamp(VOL_SIZE_TARGET / carry.vol20_pct, VOL_SIZE_MIN, VOL_SIZE_MAX)
+                                     if carry.vol20_pct is not None else 1.0)
         elif decision.action == "close" and before.is_open:
             # No quote: the last price seen, never the best price, which would
             # book the exit at the most favourable print of the trade.
@@ -114,7 +267,7 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True):
             entry_at = parse_utc(before.entry_utc or "")
             exit_at = parse_utc(str(row.get("run_utc", "")))
             hours = round((exit_at - entry_at).total_seconds() / 3600.0, 1) if (entry_at and exit_at) else ""
-            trades.append({
+            trade = {
                 "side": before.side,
                 "entry_utc": before.entry_utc, "entry_price": before.entry_price,
                 "entry_score": before.entry_score,
@@ -122,11 +275,22 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True):
                 "reason": decision.exit_reason or "manual",
                 "pnl_usd": usd, "pnl_pct": pct, "hours": hours,
                 "source": entry_source,
-            })
+            }
+            if "stop_pct" in trade_ctx:
+                trade["stop_pct"] = trade_ctx["stop_pct"]
+            if "size" in trade_ctx:
+                trade["size"] = trade_ctx["size"]
+            trades.append(trade)
+            trade_ctx = {}
 
         if price is not None:
             last_price = price
 
+    if info is not None:
+        info["missing_input_decisions"] = missing_decisions
+        info["missing_by_feature"] = missing_by_feature
+        info["blocked_entries"] = blocked
+        info["open"] = dict(trade_ctx) if position.is_open else None
     return trades, position, skipped_no_price
 
 
