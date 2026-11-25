@@ -1,0 +1,1 @@
+NO KEY: secret NEWSAPI_AI_KEY is not set
