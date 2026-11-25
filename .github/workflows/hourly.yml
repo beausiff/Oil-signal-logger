@@ -18,6 +18,10 @@ on:
         type: boolean
         default: true
 
+# Write access is only for the hourly backup commit below.
+permissions:
+  contents: write
+
 concurrency:
   group: oil-signal-logger
   cancel-in-progress: false
@@ -73,4 +77,26 @@ jobs:
             python -m src.main --dry-run $FORCE
           else
             python -m src.main $FORCE
+          fi
+
+      # Copy the sheet into backup/ every hour, so the race page can be
+      # rebuilt from the repository alone (its refresh button does that)
+      # without anyone needing access to the sheet. Never fails the run.
+      - name: Hourly sheet backup
+        if: ${{ inputs.dry_run != true }}
+        continue-on-error: true
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: |
+          python -m scripts.backup
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backup/
+          if git diff --staged --quiet; then
+            echo "sheet unchanged since last backup"
+          else
+            git commit -m "Hourly sheet backup $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase --quiet origin main
+            git push
           fi
