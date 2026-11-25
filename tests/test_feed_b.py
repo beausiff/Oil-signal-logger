@@ -540,3 +540,19 @@ def test_workflow_is_isolated_from_the_hourly_group():
     assert "OANDA" not in text
     hourly = open(".github/workflows/hourly.yml").read()
     assert "feed_b" not in hourly
+
+
+def test_signals_b_columns_are_pinned_and_take_no_context_columns():
+    # The live signals_b tab already holds rows laid out as the 25 original
+    # signals columns plus "feed". Columns the main feed gains later must not
+    # slip in before "feed", or ensure_tabs would rewrite the header and every
+    # old row's "B" would sit under the wrong name.
+    assert feed_b.SIGNALS_B_SCHEMA == [
+        "run_utc", "run_chicago", "rules_version", "market_open", "brent_price",
+        "price_time_utc", "new_headline_count", "score", "confidence", "direction",
+        "new_information", "key_headlines", "reasoning", "action", "position_after",
+        "notes", "price_1h", "price_4h", "price_24h", "price_72h",
+        "move_1h_pct", "move_4h_pct", "move_24h_pct", "move_72h_pct",
+        "score_source", "feed",
+    ]
+    assert "context_version" not in feed_b.SIGNALS_B_SCHEMA
