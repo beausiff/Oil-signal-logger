@@ -1,21 +1,21 @@
 rank,bot,$100 is now,trades,winners,total_usd,total_pct,worst_usd,open_side,open_entry,open_unrealised_usd
-1,Bot 5B: Calendar only,100.716,0,0,0,0,0,long,92.18,0.66
-2,Bot 1B: Original,100,0,0,0,0,0,flat,,
-3,Bot 2B: Hold longer,100,0,0,0,0,0,flat,,
-4,Bot 3B: Lower bar,100,0,0,0,0,0,flat,,
-5,Bot 4B: Lower bar + hold longer,100,0,0,0,0,0,flat,,
-6,Bot 6B: Opposite,100,0,0,0,0,0,flat,,
+1,Bot 5B: Calendar only,101.1065,0,0,0,0,0,long,92.18,1.02
+2,Bot 1B: Original,99.9464,0,0,0,0,0,long,93.25,-0.05
+3,Bot 2B: Hold longer,99.9464,0,0,0,0,0,long,93.25,-0.05
+4,Bot 3B: Lower bar,99.9464,0,0,0,0,0,long,93.25,-0.05
+5,Bot 4B: Lower bar + hold longer,99.9464,0,0,0,0,0,long,93.25,-0.05
+6,Bot 6B: Opposite,99.9464,0,0,0,0,0,short,93.25,-0.05
 ,,,,,,,,,,
-benchmark,Buy and hold,100.7702,,,0.71,0.7702,,,,
+benchmark,Buy and hold,101.1608,,,1.07,1.1608,,,,
 ,,,,,,,,,,
 paired comparison over the common period (rows in both feeds),,,,,,,,,,
 pair,main bot,B bot,main $100 is now,B $100 is now,B minus main,main trades,B trades,,,
-1 vs 1B,Bot 1: Original,Bot 1B: Original,100,100,0,0,0,,,
-2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,100,0,0,0,,,
-3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,100,100,0,0,0,,,
-4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,100,100,0,0,0,,,
-5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,100.716,100.716,0,0,0,,,
-6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,100,0,0,0,,,
-common_rows,2,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-25T14:05:36.903684+00:00,,,,,
+1 vs 1B,Bot 1: Original,Bot 1B: Original,100,99.9464,-0.0536,0,0,,,
+2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,99.9464,-0.0536,0,0,,,
+3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,100,99.9464,-0.0536,0,0,,,
+4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,100,99.9464,-0.0536,0,0,,,
+5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,101.1065,101.1065,0,0,0,,,
+6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,99.9464,-0.0536,0,0,,,
+common_rows,3,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-25T15:05:36.381474+00:00,,,,,
 feed_b_start,2026-11-25T13:05:38.492742+00:00,,,,,,,,,
-updated_utc,2026-11-25T14:06:29.070049+00:00,,,,,,,,,
+updated_utc,2026-11-25T15:06:24.378834+00:00,,,,,,,,,
