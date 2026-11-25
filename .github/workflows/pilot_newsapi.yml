@@ -1,0 +1,66 @@
+name: pilot_newsapi
+
+# Pilot: can NewsAPI.ai (Event Registry) replace Google News RSS? Rebuilds the
+# news window of recent LIVE runs, scores it with the live scorer and compares
+# with the live score. Free tier, one time budget: hard cap of 300 NewsAPI.ai
+# requests (backtest/pilot_newsapi_requests_used.txt) and 60 model requests
+# (backtest/pilot_newsapi_calls_used.txt), both enforced in code. Manual only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe_only:
+        description: "Stop after step 0 (one request: print the response shape)"
+        type: string
+        default: "false"
+
+permissions:
+  contents: write
+
+# Own queue; never share the hourly bot's group.
+concurrency:
+  group: oil-pilot
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run the pilot
+        env:
+          NEWSAPI_AI_KEY: ${{ secrets.NEWSAPI_AI_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          PROBE_ONLY: ${{ inputs.probe_only }}
+        run: |
+          if [ "$PROBE_ONLY" = "true" ]; then
+            python -m scripts.pilot_newsapi_vs_live --probe-only
+          else
+            python -m scripts.pilot_newsapi_vs_live
+          fi
+      # Runs even if the pilot fails part way, so the counters, the day cache and
+      # any rows done so far are never lost. Missing files are tolerated.
+      - name: Commit the results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in backtest/pilot_newsapi_vs_live.txt backtest/pilot_newsapi_vs_live.csv \
+                   backtest/pilot_newsapi_requests_used.txt backtest/pilot_newsapi_calls_used.txt \
+                   backtest/pilot_newsapi_cache; do
+            [ -e "$f" ] && git add "$f"
+          done
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "Pilot results: NewsAPI.ai versus live"
+            git pull --rebase -q origin main || true
+            git push
+          fi
