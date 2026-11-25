@@ -166,6 +166,15 @@ def section_html(rows: List[dict]) -> str:
 
     start = parse_utc(c2["start_utc"])
     started = ("%s %s UTC" % (bp.day_text(start), start.strftime("%H:%M"))) if start else "an unknown time"
+    if c2["start_utc"] == str((leaderboard.race_rows(rows) or [{}])[0].get("run_utc", "")):
+        out.append('<p class="lede">Bots 7 to 16 were added on 25 Nov 2026. Each takes Bot 1 (or its opposite) '
+                   'and changes 1 thing, using the trend, volatility or the calendar. Bot 16 reads no news and is '
+                   'a yardstick. They are ranked with Bots 1 to 6 in the scoreboard at the top. Their hours before '
+                   '25 Nov 14:05 UTC are replayed, so read those with care.</p>')
+        out.append(_note(bp, c2))
+        out.append(_cards(bp, c2, rows))
+        out.append("</section>")
+        return "\n".join(out)
     out.append('<p class="lede">Bots 7 to 16 were added on 25 Nov 2026. Each takes Bot 1 (or its opposite) and '
                'changes 1 thing, using the trend, volatility or the calendar. Bot 16 reads no news and is a '
                'yardstick. They started later than Bots 1 to 6, at %s, so compare them with "Bot 1 over the '

@@ -23,7 +23,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from scripts import cohort2_page, feed_b_page, leaderboard, replay
+from scripts import backfill_context, cohort2_page, feed_b_page, leaderboard, replay
 from scripts.trade_story import trim
 from src import rules
 from src.outcomes import parse_utc, to_float
@@ -441,6 +441,17 @@ def _race_context(rows: List[dict]):
     return race, table
 
 
+def all_bots_ranked(table: dict) -> List[dict]:
+    """Bots 1 to 16 in one ranking, best balance first, when bots 7 to 16 race
+    over the same hours as bots 1 to 6 (they do once their early inputs are
+    rebuilt). Otherwise bots 1 to 6 only. Ties keep bot number order."""
+    bots = list(table.get("bots", []))
+    c2 = table.get("cohort2") or {}
+    if c2.get("started") and c2.get("start_utc") == table.get("race_start"):
+        bots += list(c2.get("bots", []))
+    return sorted(bots, key=lambda b: -b["balance_now"])
+
+
 def _bot_by_key(table: dict) -> dict:
     return {b["key"]: b for b in table.get("bots", [])}
 
@@ -471,7 +482,7 @@ def header_html(rows, race, table, simulated: int) -> str:
         bench = table["benchmark"]
         since = (pct(bench["pct"]), "Brent since the race began") if bench and bench["pct"] is not None \
             else ("n/a", "Brent since the race began")
-        ranked = leaderboard.ranked(table)
+        ranked = all_bots_ranked(table)
         untouched = all(b["balance_now"] == leaderboard.STARTING_BALANCE and not b["open"] for b in ranked)
         leader = "no trades yet" if untouched else ranked[0]["label"]
     else:
@@ -489,7 +500,7 @@ def header_html(rows, race, table, simulated: int) -> str:
     cells = "".join('\n <div class="stat">%s<span>%s</span></div>' % (b, esc(s)) for b, s in stats)
     return (
         '<p class="eyebrow">%s</p>\n<h1>Oil bot race</h1>\n'
-        '<p class="standfirst">Six bots read the same oil news scores and trade Brent on paper with '
+        '<p class="standfirst">The bots read the same oil news scores and trade Brent on paper with '
         'different rules. This page shows who is ahead and why.</p>\n'
         '<div class="stats">%s\n</div>' % (eyebrow, cells)
     )
@@ -523,11 +534,17 @@ def balances_after(trades: List[dict]) -> List[float]:
     return out
 
 
+REPLAY_NOTE = (" Bots 7 to 16 were added on 25 Nov. Their results before 14:05 UTC that day are replayed from "
+               "the same logged scores and prices, with the trend and volatility rebuilt from daily Brent "
+               "prices as they stood at each hour. They were designed after the race began, so their early "
+               "numbers deserve less trust than Bots 1 to 6.")
+
+
 def scoreboard_html(table: dict, race) -> str:
     out = ['<section id="scoreboard">\n<h2>The scoreboard</h2>']
     started = table["started"]
     if started:
-        bots = leaderboard.ranked(table)
+        bots = all_bots_ranked(table)
     else:
         bots = [{"label": b["label"], "trades": 0, "winners": 0,
                  "balance_now": leaderboard.STARTING_BALANCE, "open": None} for b in leaderboard.BOTS]
@@ -549,8 +566,9 @@ def scoreboard_html(table: dict, race) -> str:
     out.append('<div class="tablebox"><table>\n<thead>%s</thead>\n<tbody>\n%s\n</tbody></table></div>'
                % (head, "\n".join(body)))
     out.append('<p class="note">Each bot started the race with $100 of pretend money and puts all of it into '
-               'every trade, with no borrowing. With six bots, one will be ahead by luck, so a winner has to '
-               'win a second four weeks before it counts.</p>\n</section>')
+               'every trade, with no borrowing. With %d bots, 1 will be ahead by luck, so a winner has to '
+               'win a second 4 weeks before it counts.%s</p>\n</section>'
+               % (len(bots), REPLAY_NOTE if len(bots) > len(leaderboard.BOTS) else ""))
     return "\n".join(out)
 
 
@@ -577,7 +595,7 @@ def _row_text(by_run: dict, utc: str) -> dict:
 
 
 def bot_cards_html(race, table, by_run) -> str:
-    out = ['<section id="bots">\n<h2>The six bots</h2>\n'
+    out = ['<section id="bots">\n<h2>Bots 1 to 6</h2>\n'
            '<p class="lede">Each bot follows its own rule. Trades below are race trades only. '
            'Times are UTC.</p>']
     by_key = _bot_by_key(table)
@@ -733,6 +751,7 @@ def build(rows: List[dict], simulate_race: int = 0, rows_b: Optional[List[dict]]
     if simulate_race > 0:
         for row in rows[-simulate_race:]:
             row["rules_version"] = "v2"   # preview only, in memory
+    rows = backfill_context.backfill(rows)
     race, table = _race_context(rows)
     archive = [r for r in rows if not str(r.get("rules_version", "")).strip().startswith("v2")]
     by_run = {str(r.get("run_utc", "")).strip(): r for r in rows}

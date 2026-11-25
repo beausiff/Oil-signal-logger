@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, timezone
 
-from scripts import build_page, leaderboard
+from scripts import backfill_context, build_page, leaderboard
 from src import rules
 
 
@@ -152,56 +152,55 @@ def _page_without_new_section(page):
     return page[:start] + page[end:], page[start:end]
 
 
-def test_real_csv_renders_not_started_and_rest_of_page_is_unchanged():
+def test_real_csv_without_context_is_backfilled_and_ranks_all_16_bots():
     with open(REAL_CSV, newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-    # The hourly backup now exports the context columns, so recreate the file as it was before
-    # bots 7 to 16 started: no context columns at all.
+    # Recreate the file as it was before the logger wrote context: no context columns.
     for row in rows:
-        for name in [k for k in row if k.startswith("context_") or k.startswith("ctx_")]:
+        for name in [k for k in row if k.startswith("context_") or k.startswith("ctx_")
+                     or k in ("vol20_pct", "ma200", "event_flags")]:
             del row[name]
-    assert "context_version" not in rows[0]
     page = build_page.build(rows)
-    rest, new = _page_without_new_section(page)
-    assert "Ten more bots: news plus one extra rule" in new
-    assert "have not started" in new
-    assert new.count("$100.00") >= 10 and "No trades yet." not in new
-    # The page without the new section equals the pieces the old build() joined.
-    ordered = sorted((dict(r) for r in rows), key=lambda r: str(r.get("run_utc", "")))
-    race, table = build_page._race_context(ordered)
-    archive = [r for r in ordered if not str(r.get("rules_version", "")).strip().startswith("v2")]
-    by_run = {str(r.get("run_utc", "")).strip(): r for r in ordered}
-    head, tail = rest.split('<section id="feedb">')
-    assert head.endswith(build_page.bot_cards_html(race, table, by_run) + "\n")
-    assert head.index(build_page.scoreboard_html(table, race)) < head.index(build_page.race_chart_html(race))
-    feed_b = feed_b_page.section_html(ordered, [])
-    assert ('<section id="feedb">' + tail).startswith(feed_b + "\n" + build_page.archive_html(archive, by_run))
-    assert section(page, "newbots").count("<article") == 0
-    # The new section sits directly between the six bot cards and Feed B.
+    board = section(page, "scoreboard")
+    for bot in leaderboard.ALL_BOTS:
+        assert bot["label"] in board
+    assert "replayed" in board
+    new = section(page, "newbots")
+    assert new.count("<article") == 10 and "<table>" not in new
     assert page.index('<section id="bots">') < page.index('<section id="newbots">') < page.index('<section id="feedb">')
 
 
-def test_started_section_shows_bots_reference_start_and_matches_standings():
+def test_backfill_uses_nothing_after_each_row_and_keeps_logged_context():
+    rows = ARCHIVE + _v2_rows()
+    for r in rows[len(ARCHIVE):len(ARCHIVE) + 4]:
+        for k in ("context_version", "ma200", "vol20_pct", "event_flags"):
+            r[k] = ""
+    filled = backfill_context.backfill(rows)
+    race = leaderboard.race_rows(filled)
+    assert [r["context_version"] for r in race[:4]] == [backfill_context.REPLAYED] * 4
+    assert all(r["context_version"] == "c1" and r["ma200"] == "95" for r in race[4:])
+    # Changing a later price never changes an earlier filled row.
+    later = [dict(r) for r in rows]
+    later[-1]["brent_price"] = "150.0"
+    again = leaderboard.race_rows(backfill_context.backfill(later))
+    assert [(r["ma200"], r["vol20_pct"]) for r in again[:4]] == [(r["ma200"], r["vol20_pct"]) for r in race[:4]]
+
+
+def test_started_cohort_on_the_same_hours_joins_the_top_scoreboard():
     rows = ARCHIVE + _v2_rows()
     page = build_page.build(rows)
-    new = section(page, "newbots")
-    c2 = leaderboard.standings(rows, with_luck=False)["cohort2"]
-    assert c2["started"]
-    for bot in leaderboard.NEW_BOTS:
-        assert bot["label"] in new
-    assert new.count("<article") == 10
-    assert "Bot 1 over the same hours" in new and "Just holding oil" in new
-    start = datetime.fromisoformat(c2["start_utc"])
-    assert "%s %s UTC" % (build_page.day_text(start), start.strftime("%H:%M")) in new
-    table = new[new.index("<table>"):new.index("</table>")]
-    ranked = leaderboard.ranked_cohort2(c2)
-    positions = [table.index(b["label"]) for b in ranked]
+    table = leaderboard.standings(rows, with_luck=False)
+    ranked = build_page.all_bots_ranked(table)
+    assert len(ranked) == 16
+    board = section(page, "scoreboard")
+    positions = [board.index(">%s<" % b["label"]) for b in ranked]
     assert positions == sorted(positions)
-    for b in ranked + [c2["reference"]]:
-        assert build_page.money(b["balance_now"], signed=False) in new
-        assert build_page.pct(build_page.ret_pct(b["balance_now"])) in new
-    assert table.count('class="lead"') <= 1
-    assert "With 16 bots racing" in new
+    for b in ranked:
+        assert build_page.money(b["balance_now"], signed=False) in board
+    assert board.count('class="lead"') <= 1
+    assert "With 16 bots" in board
+    new = section(page, "newbots")
+    assert new.count("<article") == 10 and "With 16 bots racing" in new
 
 
 def test_sized_stop_and_exit_reasons_are_shown():
