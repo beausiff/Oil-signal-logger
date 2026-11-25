@@ -1,3 +1,90 @@
-PROBE ONLY (1 request, day 2026-11-25): ok, see the job log for the response shape
-totalResults 1094, pages 11, articles on page 1 100
-NewsAPI.ai requests used: 1 of 300
+PILOT: NewsAPI.ai (Event Registry) versus the live Google News RSS feed
+Rule (fixed before running): GOOD ENOUGH = Pearson r >= 0.60 AND >= 70% of pairs within 2 points; NOT GOOD ENOUGH = r < 0.40; BORDERLINE = anything else; NO VERDICT = fewer than 30 pairs.
+Context: model test-retest on identical headlines (measured earlier): r = 0.976, 83% identical, 97% within one point.
+Query: live search terms as keywords (OR, title only, English, skipDuplicates), one UTC day per fetch, newest first, up to 30 pages of 100 per day. Window: v2 rows = live rule (gap + 10 min, clamped 90..720), other rows 90 min, ending at run_utc.
+
+rows sampled: 56
+pairs scored: 34 of 56 rows sampled
+rows with zero headlines in window: 22
+rows affected by truncated days (window touches a day cut short by the page limit): 0
+  of which the window starts before that day's oldest fetched article (data really missing): 0
+rows skipped for NewsAPI.ai fetch failure or request cap: 0
+rows not scored for model failure or spend cap: 0
+rows not yet processed: 0
+Pearson r (newsapi vs live): 0.364
+Fisher 95% interval for r: [0.029, 0.625]
+mean absolute difference: 1.82 points
+identical: 18%   within 1: 53%   within 2: 71%
+mean score: live 1.94, NewsAPI 1.29
+average headline count: live 23.0; NewsAPI.ai 15.4 after dedupe and the 40 cap, 19.5 in window before them
+average title overlap with logged live headlines (share with a >=60% Jaccard match): 11%
+
+VERDICT: NOT GOOD ENOUGH
+
+== article data (all cached articles of the sampled days: 2300) ==
+publish time used: dateTimePub for 2300 articles, dateTime fallback for 0; dateTimePub missing on 0 (0.0%)
+share with minute level publish times (not exactly midnight): 96.0%
+median lag dateTime minus dateTimePub: 4.5 min (n=2300)
+top 15 sources by article count:
+     47  Hellenic Shipping News
+     32  The Times of India
+     30  The Times of Israel
+     27  EconoTimes
+     27  Anadolu Ajansı
+     27  PressTV
+     25  Bloomberg Business
+     25  Asian News International (ANI)
+     23  Middle East Eye
+     23  Al Mayadeen English
+     23  Scienmag: Latest Science and Health News
+     22  Arab News
+     21  ThePrint
+     21  english.news.cn
+     21  الخارجية الأمريكية لشفق نيوز: مجاميع مدعومة إيرانياً تشكل خطراً على 4 وتردع استثماراً في العراق
+  Reuters: present (Reuters 6)
+  Bloomberg: present (Bloomberg Business 25, news.bloomberglaw.com 4)
+  CNBC: present (CNBC 3, cnbctv18.com 2)
+  OilPrice.com: present (OilPrice.com 9)
+
+== articles per sampled day (totalResults from the API; fetched; pages; truncated) ==
+2026-11-05  totalResults 2617  fetched 100  pages 1/27  truncated no  oldest fetched 2012-09-11T00:00
+2026-11-06  totalResults 1962  fetched 100  pages 1/20  truncated no  oldest fetched 2024-01-11T12:52
+2026-11-07  totalResults 1479  fetched 100  pages 1/15  truncated no  oldest fetched 2018-06-09T20:00
+2026-11-08  totalResults 1477  fetched 100  pages 1/15  truncated no  oldest fetched 2026-02-28T11:59
+2026-11-09  totalResults 2746  fetched 100  pages 1/28  truncated no  oldest fetched 2024-11-26T00:28
+2026-11-10  totalResults 3154  fetched 100  pages 1/32  truncated no  oldest fetched 2026-07-07T09:54
+2026-11-11  totalResults 2407  fetched 100  pages 1/25  truncated no  oldest fetched 2018-03-09T06:42
+2026-11-12  totalResults 2290  fetched 100  pages 1/23  truncated no  oldest fetched 2015-03-22T20:00
+2026-11-13  totalResults 2094  fetched 100  pages 1/21  truncated no  oldest fetched 2019-09-09T07:04
+2026-11-14  totalResults 1226  fetched 100  pages 1/13  truncated no  oldest fetched 2017-02-04T20:00
+2026-11-15  totalResults 1233  fetched 100  pages 1/13  truncated no  oldest fetched 2022-04-02T01:09
+2026-11-16  totalResults 2052  fetched 100  pages 1/21  truncated no  oldest fetched 2025-06-22T05:41
+2026-11-17  totalResults 2526  fetched 100  pages 1/26  truncated no  oldest fetched 2018-08-04T20:00
+2026-11-18  totalResults 2287  fetched 100  pages 1/23  truncated no  oldest fetched 2022-11-23T14:27
+2026-11-19  totalResults 2161  fetched 100  pages 1/22  truncated no  oldest fetched 2025-06-30T06:06
+2026-11-20  totalResults 1769  fetched 100  pages 1/18  truncated no  oldest fetched 2015-06-02T20:00
+2026-11-21  totalResults 1200  fetched 100  pages 1/12  truncated no  oldest fetched 2014-05-28T20:00
+2026-11-22  totalResults 1060  fetched 100  pages 1/11  truncated no  oldest fetched 2022-02-09T06:35
+2026-11-23  totalResults 1748  fetched 200  pages 2/18  truncated no  oldest fetched 2026-11-22T23:29
+2026-11-24  totalResults 1895  fetched 200  pages 2/19  truncated no  oldest fetched 2026-11-23T21:00
+2026-11-25  totalResults 1097  fetched 100  pages 1/11  truncated no  oldest fetched 2026-11-24T23:23
+
+NewsAPI.ai requests used: 24 of 700
+model calls used: 34 of 60   model spend (scorer usage cost): $0.3168
+
+== 5 example rows (evenly spaced through the pairs) ==
+2026-11-05T17:49  live +3 (medium)  newsapi +0 (low)  overlap 0.025  window 90 min
+  live:    Can a ‘drill, baby, drill’ Democrat change Texas oilfield oversight? | Trump administration held talks with Iran on deporting Iranians during the war, court documents show | Minnesota utility regulators discussing whether to allow controversial pipeline to reopen
+  newsapi: Trump administration held talks with Iran on deporting Iranians during the war | Saudi and Iranian foreign ministers discuss regional security amid escalating Houthi attacks
+2026-11-15T15:07  live +6 (medium)  newsapi +4 (medium)  overlap 0.037  window 90 min
+  live:    Iran says 2 oil tankers hit mines near Strait of Hormuz, 1 sinks | Mike Pence says Vance was ‘wrong’ to say Iran war caused GOP midterm losses | US estimates Iran has up to 2,500 ballistic missiles, or more
+  newsapi: Iran targets Bahrain twice after months of quiet, claiming retaliation against U.S.
+2026-11-22T21:05  live +2 (low)  newsapi +1 (low)  overlap 0.333  window 90 min
+  live:    Trump threatens Iran strikes in new year, says blockade runners will be sunk | California oil giants announce roaring comeback after years-long ‘drilling dry spell’ | Natural gas pipeline fire shoots flames into the air in Alabama, cause is under investigation
+  newsapi: Manufacturing and mining power Saudi revenue growth | Alabama Natural Gas Pipeline Fire Under Investigation | CENTCOM commander concludes weeklong Middle East visit amid heightened Iran tensions
+2026-11-24T10:05  live +0 (low)  newsapi +0 (low)  overlap 0.000  window 90 min
+  live:    U.S. Sanctions Target Financial Networks Supporting Iran’s Oil and Shipping Operations | Venezuela oil deal makes Strait of Hormuz ‘non-factor’ for Western Hemisphere | US puts sanctions on Iran-linked firms - Northwest Arkansas Democrat-Gazette
+  newsapi: Oil slicks in the Strait of Hormuz are harming the environment | As Debate Intensifies Around Scrapping Filibuster, Democrats Weigh Its Use To End Iran War | The New York Sun
+2026-11-25T12:05  live +1 (low)  newsapi +2 (low)  overlap 0.037  window 90 min
+  live:    Russia’s Elevated Crude Shipments Stoke Global Supply Surplus | Israel alleges Iran pursuing chemical weapons, threatens action | Iran’s Pressure Campaign Is Taking a Growing Toll at Home - Jerusalem Center for Security and Foreign Affairs
+  newsapi: Houthis claim strike on Saudi Arabia's Ras Tanura refinery as satellite images show heavy smoke | Indonesia's DSI to Set Palm Oil Export Fee at 0.5% of Value | Oil Prices retreat
