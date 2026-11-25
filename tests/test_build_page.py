@@ -40,8 +40,17 @@ def section(page, name):
 def test_fragment_shape_and_forbidden_characters():
     page = build_page.build(ARCHIVE + RACE)
     assert page.startswith("<title>Oil Bot Race</title>")
-    for banned in ("<html", "<body", "<script", "<!DOCTYPE", "—", "–"):
+    for banned in ("<html", "<body", "<!DOCTYPE", "—", "–"):
         assert banned not in page
+    # The only script is the refresh button, which fires the refresh task.
+    assert page.count("<script") == 1
+    assert build_page.REFRESH_TRIGGER_ID in page
+
+
+def test_how_it_runs_names_the_oanda_mirror():
+    page = build_page.build(ARCHIVE + RACE)
+    assert "No broker" not in page
+    assert "OANDA practice account" in page
 
 
 def test_all_six_bots_in_scoreboard_and_cards():

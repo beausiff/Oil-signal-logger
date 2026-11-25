@@ -59,8 +59,55 @@ HOW_IT_RUNS = [
     ("Scoring", "Scores with Claude, about $7 a month"),
     ("Prices", "Prices from OilPriceAPI"),
     ("Data", "All data in the Oil Signal Log Google Sheet, backed up weekly to GitHub"),
-    ("Money", "No broker, no real money"),
+    ("Money", "Bot 1's trades are copied to an OANDA practice account. Fake money, real prices"),
 ]
+
+# The refresh button fires this scheduled task (run on demand only) through the
+# viewer's Claude Code Remote connector. A fresh Claude session then backs up
+# the sheet, rebuilds this page and republishes it, which takes a few minutes.
+REFRESH_TRIGGER_ID = "trig_01GfRAdhohGNnd7wwKwZmk9z"
+
+REFRESH_HTML = """<div class="refresh" id="refresh" hidden>
+ <button type="button" id="refresh-btn">Refresh data</button>
+ <span id="refresh-msg">Pulls the latest hours and rebuilds this page. Takes about 5 minutes.</span>
+</div>
+<script>
+(async function () {
+  var box = document.getElementById("refresh");
+  var btn = document.getElementById("refresh-btn");
+  var msg = document.getElementById("refresh-msg");
+  var SERVER = "Claude Code Remote";
+  function say(t) { msg.textContent = t; }
+  var mcp = null;
+  try { mcp = window.claude && (await window.claude.use("mcp")); } catch (e) { mcp = null; }
+  if (!mcp) return;
+  box.hidden = false;
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    say("Starting the refresh…");
+    try {
+      await mcp.callTool(SERVER, "fire_trigger", { trigger_id: "%s" });
+      say("Refresh started. This page reloads by itself in about 5 minutes.");
+    } catch (e) {
+      var code = e && e.code;
+      if (code === "server_not_connected" || code === "selection_required") {
+        say("Add the Claude Code Remote connector in claude.ai Settings, Connectors, then try again.");
+      } else if (code === "needs_reauth") {
+        say("Reconnect Claude Code Remote in claude.ai Settings, Connectors, then try again.");
+      } else if (code === "not_in_manifest" || code === "approval_required" || code === "consent_required") {
+        say("The refresh needs your permission. Click again and allow it.");
+      } else if (code === "blocked_by_policy" || code === "not_granted" || code === "capability_disabled") {
+        say("Refreshing is not available here. Ask Claude to refresh the page instead.");
+      } else if (code === "server_unavailable" || code === "upstream_error") {
+        say("No answer, so it may have started anyway. Wait 5 minutes before trying again.");
+      } else {
+        say("The refresh did not start" + (e && e.message ? ": " + e.message : "."));
+      }
+    }
+    btn.disabled = false;
+  });
+})();
+</script>""" % REFRESH_TRIGGER_ID
 
 CSS = """/* Layout: a full-bleed instrument panel up top, then sections in a single reading column. */
 :root{
@@ -98,6 +145,11 @@ h1{font-size:clamp(1.9rem,5vw,3rem);line-height:1.08;font-weight:700;letter-spac
   font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .stat b.sm{font-size:1rem;line-height:1.3;overflow-wrap:anywhere}
 .stat span{display:block;font-size:.72rem;color:var(--muted);margin-top:.15rem}
+.refresh{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .9rem;margin:-1.4rem 0 2.4rem}
+.refresh button{font:600 .85rem var(--display);color:var(--paper);background:var(--ink);border:0;
+  border-radius:3px;padding:.55rem 1rem;cursor:pointer;min-height:40px}
+.refresh button:disabled{opacity:.5;cursor:default}
+.refresh span{font-size:.8rem;color:var(--muted)}
 
 figure{margin:0 0 1rem}
 .chartbox{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
@@ -691,12 +743,13 @@ def build(rows: List[dict], simulate_race: int = 0) -> str:
         "<style>\n%s</style>" % CSS,
         '<div class="wrap">',
         header_html(rows, race, table, simulate_race),
+        REFRESH_HTML,
         scoreboard_html(table, race),
         race_chart_html(race),
         bot_cards_html(race, table, by_run),
         archive_html(archive, by_run),
         how_it_runs_html(),
-        "<footer>Simulated throughout. No broker is connected and no money is at risk.</footer>",
+        "<footer>Simulated throughout. Bot 1 is mirrored on an OANDA practice account, so no real money is at risk.</footer>",
         "</div>",
     ]
     return "\n".join(parts) + "\n"
