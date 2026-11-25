@@ -40,12 +40,19 @@ KEEP_HEADLINES = config.MAX_HEADLINES_PER_RUN   # 40, as the live path
 # tightest Event Registry source rank percentile filter (end percentile 30, else
 # 50) for which the API accepts the fields AND the last 90 minutes hold at least
 # 15 articles; otherwise no filter. The decision is locked below with the date
-# and the evidence. Until it is locked feed B refuses to run, so a run can never
-# start on an undecided filter.
-SOURCE_FILTER_LOCKED = False
-SOURCE_RANK_END_PERCENTILE: Optional[int] = None   # None = no filter; 30 or 50 = endSourceRankPercentile
+# and the evidence. If SOURCE_FILTER_LOCKED is False feed B refuses to run, so a
+# run can never start on an undecided filter.
+#
+# LOCKED 2026-11-25 (probe run 45623799040, backtest/feed_b_filter_probe.txt, 4
+# requests). Evidence: the API accepted startSourceRankPercentile 0 /
+# endSourceRankPercentile 30 (no error, totalResults 311 against 1148 unfiltered
+# for the same days) and 29 articles were published in the last 90 minutes, which
+# is at least 15, so the tightest candidate passes. (50 also passed: 503 total,
+# 49 in 90 minutes.) Do not change this during the race.
+SOURCE_FILTER_LOCKED = True
+SOURCE_RANK_END_PERCENTILE: Optional[int] = 30   # None = no filter; 30 or 50 = endSourceRankPercentile
 SOURCE_RANK_START_PERCENTILE = 0
-FILTER_DECISION = "UNDECIDED"
+FILTER_DECISION = "endSourceRankPercentile 30"
 
 SECRET_ENVS = ("NEWSAPI_AI_KEY", "ANTHROPIC_API_KEY", "GOOGLE_SERVICE_ACCOUNT_JSON")
 
