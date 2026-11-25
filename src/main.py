@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from . import broker, config, news, outcomes, price as price_client, rules, scorer, sheets, weekend
+from . import broker, config, context, news, outcomes, price as price_client, rules, scorer, sheets, weekend
 from .rules import FLAT, Position
-from .sheets import HEADLINES, SIGNALS, STATE, TRADES
+from .sheets import CONTEXT, HEADLINES, SIGNALS, STATE, TRADES
 
 
 def _as_bool(value) -> bool:
@@ -155,8 +156,26 @@ def minutes_since_last_run(state: dict, now_utc: datetime) -> Optional[float]:
     return (now_utc - last).total_seconds() / 60.0
 
 
+def _ensure_columns(client, tab: str) -> None:
+    """Add header cells for new schema columns (and create a missing tab).
+
+    One cheap read per tab per run. Fail soft: a sheet that cannot be patched
+    here still gets its row appended, and `python -m scripts.init_sheet` fixes
+    the header later.
+    """
+    ensure = getattr(client, "ensure_columns", None)
+    if ensure is None:
+        return
+    try:
+        for change in ensure(tab):
+            print("sheet: %s" % change)
+    except Exception as exc:  # noqa: BLE001
+        print("sheet header check skipped for %s: %s" % (tab, type(exc).__name__))
+
+
 def run(dry_run: bool = False, force: bool = False) -> int:
     now_utc = datetime.now(timezone.utc)
+    started = time.monotonic()
     now_chicago = rules.to_chicago(now_utc)
     market_open = rules.is_market_open(now_chicago)
     notes: List[str] = []
@@ -181,11 +200,14 @@ def run(dry_run: bool = False, force: bool = False) -> int:
     known_hashes = client.recent_hashes(config.DEDUPE_LOOKBACK_ROWS)
     window = news_window_minutes(gap)
     notes.append("news_window_min=%d" % window)
+    news.reset_stats()
     fresh = news.collect(known_hashes, now_utc, lookback_minutes=window)
     print("news window: %d minutes, new headlines: %d" % (window, len(fresh)))
 
     # 3. Brent price. A blank price never stops the run.
+    price_started = time.monotonic()
     quote = price_client.fetch_brent()
+    price_ms = int((time.monotonic() - price_started) * 1000)
     if quote.note:
         notes.append(quote.note)
     print("brent: %s" % (quote.price if quote.ok else "unavailable"))
@@ -295,6 +317,17 @@ def run(dry_run: bool = False, force: bool = False) -> int:
             notes.append(broker_note)
             print(broker_note)
 
+    # 6c. Context for the log (src/context.py). Strictly fail soft and after
+    # the decision: nothing it does can reach the score, the rules or the
+    # columns that existed before it. Any error leaves blanks.
+    gathered = None
+    gather_errors: List[str] = []
+    try:
+        gathered = context.gather(now_utc, quote.price if quote.ok else None, all_signals)
+    except Exception as exc:  # noqa: BLE001 - never fail the run over context
+        gather_errors.append("gather_failed:%s" % type(exc).__name__)
+        print("context skipped: %s" % type(exc).__name__)
+
     # 7. Write.
     if fresh:
         client.append(
@@ -320,6 +353,9 @@ def run(dry_run: bool = False, force: bool = False) -> int:
         "score_source": "live" if scored is not None else ("" if fresh else "carried"),
     }
     signal_row.update(score_fields)
+    signal_row.update(context.signal_fields(now_utc, gathered))
+    if not dry_run:
+        _ensure_columns(client, SIGNALS)
     client.append(SIGNALS, [signal_row])
     client.write_state(position_to_state(new_position, now_utc))
 
@@ -367,6 +403,23 @@ def run(dry_run: bool = False, force: bool = False) -> int:
     # whose headlines, price and backfill are worth keeping.
     written = all_signals + [signal_row]
 
+    # The context tab: one wide row per run, after everything else, in its own
+    # try/except so a failure here costs that row and nothing more.
+    try:
+        if not dry_run:
+            _ensure_columns(client, CONTEXT)
+        client.append(CONTEXT, [context.build_row(
+            now_utc,
+            gathered,
+            context.news_columns(news.LAST_STATS, fresh, now_utc, window),
+            context.run_meta_columns(
+                now_utc, usage, quote, price_ms,
+                int((time.monotonic() - started) * 1000)),
+            extra_errors=gather_errors,
+        )])
+    except Exception as exc:  # noqa: BLE001 - never fail the run over a side table
+        print("context row skipped: %s: %s" % (type(exc).__name__, exc))
+
     # The race leaderboard, from rows already in memory. It must never fail or
     # slow a run, so it skips the shifted null and swallows any error.
     if not dry_run:
@@ -378,6 +431,14 @@ def run(dry_run: bool = False, force: bool = False) -> int:
                 leaderboard.write_tab(client, table)
         except Exception as exc:  # noqa: BLE001 - never fail the run over a side table
             print("leaderboard skipped: %s: %s" % (type(exc).__name__, exc))
+        # Every trade of every bot, refreshed each run so the log is never stale.
+        try:
+            from scripts import leaderboard
+
+            if leaderboard.race_rows(written):
+                leaderboard.write_bot_trades_tab(client, leaderboard.bot_trades_report(written))
+        except Exception as exc:  # noqa: BLE001 - never fail the run over a side table
+            print("bot_trades skipped: %s: %s" % (type(exc).__name__, exc))
 
     # Rows with no new headlines never called the scorer, so a quiet run in
     # the middle of an outage must not reset the streak.

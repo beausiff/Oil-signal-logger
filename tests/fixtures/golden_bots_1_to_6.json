@@ -1,0 +1,1149 @@
+{
+ "bots": {
+  "calendar": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 103.08,
+      "entry_utc": "2026-09-17T14:19:57.645833+00:00",
+      "exit_price": 103.37,
+      "exit_utc": "2026-09-18T22:38:03.726635+00:00",
+      "pnl_pct": 0.2328,
+      "pnl_usd": 0.24,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 101.62,
+      "entry_utc": "2026-09-21T05:04:30.964420+00:00",
+      "exit_price": 104.38,
+      "exit_utc": "2026-09-25T22:26:48.441633+00:00",
+      "pnl_pct": 2.6668,
+      "pnl_usd": 2.71,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 106.6,
+      "entry_utc": "2026-09-28T07:01:27.308906+00:00",
+      "exit_price": 102.72,
+      "exit_utc": "2026-10-02T23:01:21.526531+00:00",
+      "pnl_pct": -3.6867,
+      "pnl_usd": -3.93,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 101.75,
+      "entry_utc": "2026-10-05T07:09:03.447983+00:00",
+      "exit_price": 104.43,
+      "exit_utc": "2026-10-09T20:58:29.344442+00:00",
+      "pnl_pct": 2.5848,
+      "pnl_usd": 2.63,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 103.91,
+      "entry_utc": "2026-10-12T06:06:39.012474+00:00",
+      "exit_price": 109.93,
+      "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+      "pnl_pct": 5.7454,
+      "pnl_usd": 5.97,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 107.47,
+      "entry_utc": "2026-10-19T06:19:05.534556+00:00",
+      "exit_price": 117.38,
+      "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+      "pnl_pct": 9.1747,
+      "pnl_usd": 9.86,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 114.47,
+      "entry_utc": "2026-10-26T06:21:07.267943+00:00",
+      "exit_price": 117.55,
+      "exit_utc": "2026-10-30T20:51:33.099506+00:00",
+      "pnl_pct": 2.647,
+      "pnl_usd": 3.03,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 110.05,
+      "entry_utc": "2026-11-02T07:44:37.681444+00:00",
+      "exit_price": 97.97,
+      "exit_utc": "2026-11-07T00:57:51.351104+00:00",
+      "pnl_pct": -11.0223,
+      "pnl_usd": -12.13,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 97.53,
+      "entry_utc": "2026-11-09T10:22:42.142859+00:00",
+      "exit_price": 96.29,
+      "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+      "pnl_pct": -1.3227,
+      "pnl_usd": -1.29,
+      "reason": "friday",
+      "side": "long"
+     },
+     {
+      "entry_price": 96.61,
+      "entry_utc": "2026-11-16T06:51:02.871552+00:00",
+      "exit_price": 92.59,
+      "exit_utc": "2026-11-21T00:22:19.951994+00:00",
+      "pnl_pct": -4.2128,
+      "pnl_usd": -4.07,
+      "reason": "friday",
+      "side": "long"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  },
+  "hold_longer": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 106.18,
+      "entry_score": 6,
+      "entry_utc": "2026-10-14T18:41:27.437539+00:00",
+      "exit_price": 109.93,
+      "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+      "hours": 50.6,
+      "pnl_pct": 3.4846,
+      "pnl_usd": 3.7,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 111.48,
+      "entry_score": 6,
+      "entry_utc": "2026-10-22T07:40:51.839511+00:00",
+      "exit_price": 117.38,
+      "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+      "hours": 38.6,
+      "pnl_pct": 5.2476,
+      "pnl_usd": 5.85,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 103.75,
+      "entry_score": -6,
+      "entry_utc": "2026-11-02T18:29:32.280349+00:00",
+      "exit_price": 97.32,
+      "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+      "hours": 71.3,
+      "pnl_pct": 6.1494,
+      "pnl_usd": 6.38,
+      "reason": "stop",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 93.86,
+      "entry_score": 6,
+      "entry_utc": "2026-11-12T16:54:53.759955+00:00",
+      "exit_price": 96.29,
+      "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+      "hours": 30.7,
+      "pnl_pct": 2.5357,
+      "pnl_usd": 2.38,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  },
+  "lower_bar": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 102.67,
+      "entry_score": -4,
+      "entry_utc": "2026-09-29T20:52:19.381245+00:00",
+      "exit_price": 103.5,
+      "exit_utc": "2026-09-30T19:26:33.949708+00:00",
+      "hours": 22.6,
+      "pnl_pct": -0.8571,
+      "pnl_usd": -0.88,
+      "reason": "reversal",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 102.21,
+      "entry_score": 4,
+      "entry_utc": "2026-10-05T01:00:38.992989+00:00",
+      "exit_price": 100.22,
+      "exit_utc": "2026-10-05T22:43:05.063095+00:00",
+      "hours": 21.7,
+      "pnl_pct": -1.9959,
+      "pnl_usd": -2.04,
+      "reason": "reversal",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 100.79,
+      "entry_score": 4,
+      "entry_utc": "2026-10-07T16:36:04.565263+00:00",
+      "exit_price": 104.43,
+      "exit_utc": "2026-10-09T20:58:29.344442+00:00",
+      "hours": 52.4,
+      "pnl_pct": 3.5619,
+      "pnl_usd": 3.59,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 105.54,
+      "entry_score": 4,
+      "entry_utc": "2026-10-11T23:45:00.165443+00:00",
+      "exit_price": 109.93,
+      "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+      "hours": 117.5,
+      "pnl_pct": 4.1122,
+      "pnl_usd": 4.34,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 110.02,
+      "entry_score": 5,
+      "entry_utc": "2026-10-21T22:25:00.369819+00:00",
+      "exit_price": 117.38,
+      "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+      "hours": 47.9,
+      "pnl_pct": 6.6442,
+      "pnl_usd": 7.31,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 115.24,
+      "entry_score": 4,
+      "entry_utc": "2026-10-28T18:53:48.858137+00:00",
+      "exit_price": 117.55,
+      "exit_utc": "2026-10-30T20:51:33.099506+00:00",
+      "hours": 50.0,
+      "pnl_pct": 1.9611,
+      "pnl_usd": 2.26,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 110.05,
+      "entry_score": -5,
+      "entry_utc": "2026-11-02T07:44:37.681444+00:00",
+      "exit_price": 106.7,
+      "exit_utc": "2026-11-03T09:39:39.896073+00:00",
+      "hours": 25.9,
+      "pnl_pct": 2.9986,
+      "pnl_usd": 3.3,
+      "reason": "reversal",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 104.27,
+      "entry_score": 5,
+      "entry_utc": "2026-11-03T23:28:22.757328+00:00",
+      "exit_price": 101.11,
+      "exit_utc": "2026-11-04T15:29:48.891559+00:00",
+      "hours": 16.0,
+      "pnl_pct": -3.0785,
+      "pnl_usd": -3.21,
+      "reason": "stop",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 94.84,
+      "entry_score": -5,
+      "entry_utc": "2026-11-04T21:58:27.563766+00:00",
+      "exit_price": 97.32,
+      "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+      "hours": 19.8,
+      "pnl_pct": -2.6677,
+      "pnl_usd": -2.53,
+      "reason": "stop",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 99.28,
+      "entry_score": -4,
+      "entry_utc": "2026-11-06T00:22:49.477700+00:00",
+      "exit_price": 97.97,
+      "exit_utc": "2026-11-07T00:57:51.351104+00:00",
+      "hours": 24.6,
+      "pnl_pct": 1.2691,
+      "pnl_usd": 1.26,
+      "reason": "friday",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 97.79,
+      "entry_score": -4,
+      "entry_utc": "2026-11-09T02:39:22.674340+00:00",
+      "exit_price": 93.0,
+      "exit_utc": "2026-11-11T11:14:30.021083+00:00",
+      "hours": 56.6,
+      "pnl_pct": 4.8471,
+      "pnl_usd": 4.74,
+      "reason": "reversal",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 93.86,
+      "entry_score": 6,
+      "entry_utc": "2026-11-12T16:54:53.759955+00:00",
+      "exit_price": 96.29,
+      "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+      "hours": 30.7,
+      "pnl_pct": 2.5357,
+      "pnl_usd": 2.38,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 95.52,
+      "entry_score": 4,
+      "entry_utc": "2026-11-16T00:17:28.837104+00:00",
+      "exit_price": 93.41,
+      "exit_utc": "2026-11-16T16:37:35.290595+00:00",
+      "hours": 16.3,
+      "pnl_pct": -2.2613,
+      "pnl_usd": -2.16,
+      "reason": "stop",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 91.38,
+      "entry_score": 4,
+      "entry_utc": "2026-11-18T16:41:50.901544+00:00",
+      "exit_price": 92.59,
+      "exit_utc": "2026-11-21T00:22:19.951994+00:00",
+      "hours": 55.7,
+      "pnl_pct": 1.2694,
+      "pnl_usd": 1.16,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  },
+  "lower_bar_hold": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 102.67,
+      "entry_score": -4,
+      "entry_utc": "2026-09-29T20:52:19.381245+00:00",
+      "exit_price": 102.4,
+      "exit_utc": "2026-10-01T19:35:55.510446+00:00",
+      "hours": 46.7,
+      "pnl_pct": 0.2143,
+      "pnl_usd": 0.22,
+      "reason": "stop",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 102.21,
+      "entry_score": 4,
+      "entry_utc": "2026-10-05T01:00:38.992989+00:00",
+      "exit_price": 98.53,
+      "exit_utc": "2026-10-06T10:27:14.257085+00:00",
+      "hours": 33.4,
+      "pnl_pct": -3.6493,
+      "pnl_usd": -3.73,
+      "reason": "stop",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 100.79,
+      "entry_score": 4,
+      "entry_utc": "2026-10-07T16:36:04.565263+00:00",
+      "exit_price": 104.43,
+      "exit_utc": "2026-10-09T20:58:29.344442+00:00",
+      "hours": 52.4,
+      "pnl_pct": 3.5619,
+      "pnl_usd": 3.59,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 105.54,
+      "entry_score": 4,
+      "entry_utc": "2026-10-11T23:45:00.165443+00:00",
+      "exit_price": 109.93,
+      "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+      "hours": 117.5,
+      "pnl_pct": 4.1122,
+      "pnl_usd": 4.34,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 110.02,
+      "entry_score": 5,
+      "entry_utc": "2026-10-21T22:25:00.369819+00:00",
+      "exit_price": 117.38,
+      "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+      "hours": 47.9,
+      "pnl_pct": 6.6442,
+      "pnl_usd": 7.31,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 115.24,
+      "entry_score": 4,
+      "entry_utc": "2026-10-28T18:53:48.858137+00:00",
+      "exit_price": 117.55,
+      "exit_utc": "2026-10-30T20:51:33.099506+00:00",
+      "hours": 50.0,
+      "pnl_pct": 1.9611,
+      "pnl_usd": 2.26,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 110.05,
+      "entry_score": -5,
+      "entry_utc": "2026-11-02T07:44:37.681444+00:00",
+      "exit_price": 97.32,
+      "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+      "hours": 82.1,
+      "pnl_pct": 11.522,
+      "pnl_usd": 12.68,
+      "reason": "stop",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 99.28,
+      "entry_score": -4,
+      "entry_utc": "2026-11-06T00:22:49.477700+00:00",
+      "exit_price": 97.97,
+      "exit_utc": "2026-11-07T00:57:51.351104+00:00",
+      "hours": 24.6,
+      "pnl_pct": 1.2691,
+      "pnl_usd": 1.26,
+      "reason": "friday",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 97.79,
+      "entry_score": -4,
+      "entry_utc": "2026-11-09T02:39:22.674340+00:00",
+      "exit_price": 95.76,
+      "exit_utc": "2026-11-13T02:56:56.046579+00:00",
+      "hours": 96.3,
+      "pnl_pct": 2.0247,
+      "pnl_usd": 1.98,
+      "reason": "stop",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 95.52,
+      "entry_score": 4,
+      "entry_utc": "2026-11-16T00:17:28.837104+00:00",
+      "exit_price": 93.41,
+      "exit_utc": "2026-11-16T16:37:35.290595+00:00",
+      "hours": 16.3,
+      "pnl_pct": -2.2613,
+      "pnl_usd": -2.16,
+      "reason": "stop",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 91.38,
+      "entry_score": 4,
+      "entry_utc": "2026-11-18T16:41:50.901544+00:00",
+      "exit_price": 92.59,
+      "exit_utc": "2026-11-21T00:22:19.951994+00:00",
+      "hours": 55.7,
+      "pnl_pct": 1.2694,
+      "pnl_usd": 1.16,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  },
+  "opposite": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 106.18,
+      "entry_score": -6,
+      "entry_utc": "2026-10-14T18:41:27.437539+00:00",
+      "exit_price": 109.32,
+      "exit_utc": "2026-10-16T17:29:42.587695+00:00",
+      "hours": 46.8,
+      "pnl_pct": -3.0043,
+      "pnl_usd": -3.19,
+      "reason": "stop",
+      "side": "short",
+      "source": "live"
+     },
+     {
+      "entry_price": 111.48,
+      "entry_score": -6,
+      "entry_utc": "2026-10-22T07:40:51.839511+00:00",
+      "exit_price": 115.29,
+      "exit_utc": "2026-10-23T13:31:54.893194+00:00",
+      "hours": 29.9,
+      "pnl_pct": -3.4625,
+      "pnl_usd": -3.86,
+      "reason": "stop",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 103.75,
+      "entry_score": 6,
+      "entry_utc": "2026-11-02T18:29:32.280349+00:00",
+      "exit_price": 106.7,
+      "exit_utc": "2026-11-03T09:39:39.896073+00:00",
+      "hours": 15.2,
+      "pnl_pct": 2.7952,
+      "pnl_usd": 2.9,
+      "reason": "reversal",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 94.08,
+      "entry_score": 6,
+      "entry_utc": "2026-11-05T02:32:07.264464+00:00",
+      "exit_price": 97.32,
+      "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+      "hours": 15.3,
+      "pnl_pct": 3.3907,
+      "pnl_usd": 3.19,
+      "reason": "reversal",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 93.86,
+      "entry_score": -6,
+      "entry_utc": "2026-11-12T16:54:53.759955+00:00",
+      "exit_price": 96.29,
+      "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+      "hours": 30.7,
+      "pnl_pct": -2.6422,
+      "pnl_usd": -2.48,
+      "reason": "friday",
+      "side": "short",
+      "source": "live"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  },
+  "original": {
+   "all_rows": {
+    "input_rows": 312,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": [
+     {
+      "entry_price": 106.18,
+      "entry_score": 6,
+      "entry_utc": "2026-10-14T18:41:27.437539+00:00",
+      "exit_price": 109.93,
+      "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+      "hours": 50.6,
+      "pnl_pct": 3.4846,
+      "pnl_usd": 3.7,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     },
+     {
+      "entry_price": 111.48,
+      "entry_score": 6,
+      "entry_utc": "2026-10-22T07:40:51.839511+00:00",
+      "exit_price": 117.38,
+      "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+      "hours": 38.6,
+      "pnl_pct": 5.2476,
+      "pnl_usd": 5.85,
+      "reason": "friday",
+      "side": "long",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 103.75,
+      "entry_score": -6,
+      "entry_utc": "2026-11-02T18:29:32.280349+00:00",
+      "exit_price": 106.7,
+      "exit_utc": "2026-11-03T09:39:39.896073+00:00",
+      "hours": 15.2,
+      "pnl_pct": -2.8916,
+      "pnl_usd": -3.0,
+      "reason": "reversal",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 94.08,
+      "entry_score": -6,
+      "entry_utc": "2026-11-05T02:32:07.264464+00:00",
+      "exit_price": 97.32,
+      "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+      "hours": 15.3,
+      "pnl_pct": -3.497,
+      "pnl_usd": -3.29,
+      "reason": "stop",
+      "side": "short",
+      "source": "backfilled:2026-11-05"
+     },
+     {
+      "entry_price": 93.86,
+      "entry_score": 6,
+      "entry_utc": "2026-11-12T16:54:53.759955+00:00",
+      "exit_price": 96.29,
+      "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+      "hours": 30.7,
+      "pnl_pct": 2.5357,
+      "pnl_usd": 2.38,
+      "reason": "friday",
+      "side": "long",
+      "source": "live"
+     }
+    ]
+   },
+   "race_rows": {
+    "input_rows": 1,
+    "position": {
+     "best_price": null,
+     "entry_price": null,
+     "entry_score": null,
+     "entry_utc": null,
+     "side": "flat",
+     "trade_id": null
+    },
+    "trades": []
+   }
+  }
+ },
+ "note": "Bots 1 to 6 over tests/fixtures/golden_signals_input.csv, captured on the unmodified code on 2026-11-25.",
+ "replay_all_rows": {
+  "position": {
+   "best_price": null,
+   "entry_price": null,
+   "entry_score": null,
+   "entry_utc": null,
+   "side": "flat",
+   "trade_id": null
+  },
+  "skipped_no_price": 0,
+  "trades": [
+   {
+    "entry_price": 106.18,
+    "entry_score": 6,
+    "entry_utc": "2026-10-14T18:41:27.437539+00:00",
+    "exit_price": 109.93,
+    "exit_utc": "2026-10-16T21:17:50.133534+00:00",
+    "hours": 50.6,
+    "pnl_pct": 3.4846,
+    "pnl_usd": 3.7,
+    "reason": "friday",
+    "side": "long",
+    "source": "live"
+   },
+   {
+    "entry_price": 111.48,
+    "entry_score": 6,
+    "entry_utc": "2026-10-22T07:40:51.839511+00:00",
+    "exit_price": 117.38,
+    "exit_utc": "2026-10-23T22:17:11.020095+00:00",
+    "hours": 38.6,
+    "pnl_pct": 5.2476,
+    "pnl_usd": 5.85,
+    "reason": "friday",
+    "side": "long",
+    "source": "backfilled:2026-11-05"
+   },
+   {
+    "entry_price": 103.75,
+    "entry_score": -6,
+    "entry_utc": "2026-11-02T18:29:32.280349+00:00",
+    "exit_price": 106.7,
+    "exit_utc": "2026-11-03T09:39:39.896073+00:00",
+    "hours": 15.2,
+    "pnl_pct": -2.8916,
+    "pnl_usd": -3.0,
+    "reason": "reversal",
+    "side": "short",
+    "source": "backfilled:2026-11-05"
+   },
+   {
+    "entry_price": 94.08,
+    "entry_score": -6,
+    "entry_utc": "2026-11-05T02:32:07.264464+00:00",
+    "exit_price": 97.32,
+    "exit_utc": "2026-11-05T17:49:23.505104+00:00",
+    "hours": 15.3,
+    "pnl_pct": -3.497,
+    "pnl_usd": -3.29,
+    "reason": "stop",
+    "side": "short",
+    "source": "backfilled:2026-11-05"
+   },
+   {
+    "entry_price": 93.86,
+    "entry_score": 6,
+    "entry_utc": "2026-11-12T16:54:53.759955+00:00",
+    "exit_price": 96.29,
+    "exit_utc": "2026-11-13T23:38:18.081212+00:00",
+    "hours": 30.7,
+    "pnl_pct": 2.5357,
+    "pnl_usd": 2.38,
+    "reason": "friday",
+    "side": "long",
+    "source": "live"
+   }
+  ]
+ },
+ "standings_actual": {
+  "benchmark": {
+   "balance_now": 100.0,
+   "first_price": 92.59,
+   "last_price": 92.59,
+   "pct": 0.0,
+   "usd": 0.0
+  },
+  "bots": [
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "original",
+    "label": "Bot 1: Original",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   },
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "hold_longer",
+    "label": "Bot 2: Hold longer",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   },
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "lower_bar",
+    "label": "Bot 3: Lower bar",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   },
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "lower_bar_hold",
+    "label": "Bot 4: Lower bar + hold longer",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   },
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "calendar",
+    "label": "Bot 5: Calendar only",
+    "luck_note": "n/a, reads no news",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   },
+   {
+    "balance": 100.0,
+    "balance_now": 100.0,
+    "key": "opposite",
+    "label": "Bot 6: Opposite",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 0,
+    "total_usd": 0,
+    "trades": 0,
+    "winners": 0,
+    "worst_usd": 0
+   }
+  ],
+  "generated_utc": "2026-11-22T10:17:37.658952+00:00",
+  "race_rows": 1,
+  "race_start": "2026-11-22T10:17:37.658952+00:00",
+  "started": true
+ },
+ "standings_all_v2_luck": {
+  "benchmark": {
+   "balance_now": 89.8234,
+   "first_price": 103.08,
+   "last_price": 92.59,
+   "pct": -10.1766,
+   "usd": -10.49
+  },
+  "bots": [
+   {
+    "balance": 104.6552,
+    "balance_now": 104.6552,
+    "key": "original",
+    "label": "Bot 1: Original",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 4.8793,
+    "total_usd": 5.64,
+    "trades": 5,
+    "winners": 3,
+    "worst_usd": -3.29
+   },
+   {
+    "balance": 118.5443,
+    "balance_now": 118.5443,
+    "key": "hold_longer",
+    "label": "Bot 2: Hold longer",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 17.4173,
+    "total_usd": 18.31,
+    "trades": 4,
+    "winners": 4,
+    "worst_usd": 0
+   },
+   {
+    "balance": 119.2727,
+    "balance_now": 119.2727,
+    "key": "lower_bar",
+    "label": "Bot 3: Lower bar",
+    "luck_note": "",
+    "luck_p": 0.030612244897959183,
+    "open": null,
+    "total_pct": 18.3388,
+    "total_usd": 19.52,
+    "trades": 14,
+    "winners": 9,
+    "worst_usd": -3.21
+   },
+   {
+    "balance": 129.1057,
+    "balance_now": 129.1057,
+    "key": "lower_bar_hold",
+    "label": "Bot 4: Lower bar + hold longer",
+    "luck_note": "",
+    "luck_p": 0.013605442176870748,
+    "open": null,
+    "total_pct": 26.6683,
+    "total_usd": 28.91,
+    "trades": 11,
+    "winners": 9,
+    "worst_usd": -3.73
+   },
+   {
+    "balance": 101.3316,
+    "balance_now": 101.3316,
+    "key": "calendar",
+    "label": "Bot 5: Calendar only",
+    "luck_note": "n/a, reads no news",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 2.807,
+    "total_usd": 3.02,
+    "trades": 10,
+    "winners": 6,
+    "worst_usd": -12.13
+   },
+   {
+    "balance": 96.8888,
+    "balance_now": 96.8888,
+    "key": "opposite",
+    "label": "Bot 6: Opposite",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": -2.9231,
+    "total_usd": -3.44,
+    "trades": 5,
+    "winners": 2,
+    "worst_usd": -3.86
+   }
+  ],
+  "generated_utc": "2026-11-22T10:17:37.658952+00:00",
+  "race_rows": 312,
+  "race_start": "2026-09-17T14:19:57.645833+00:00",
+  "started": true
+ },
+ "standings_all_v2_no_luck": {
+  "benchmark": {
+   "balance_now": 89.8234,
+   "first_price": 103.08,
+   "last_price": 92.59,
+   "pct": -10.1766,
+   "usd": -10.49
+  },
+  "bots": [
+   {
+    "balance": 104.6552,
+    "balance_now": 104.6552,
+    "key": "original",
+    "label": "Bot 1: Original",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 4.8793,
+    "total_usd": 5.64,
+    "trades": 5,
+    "winners": 3,
+    "worst_usd": -3.29
+   },
+   {
+    "balance": 118.5443,
+    "balance_now": 118.5443,
+    "key": "hold_longer",
+    "label": "Bot 2: Hold longer",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 17.4173,
+    "total_usd": 18.31,
+    "trades": 4,
+    "winners": 4,
+    "worst_usd": 0
+   },
+   {
+    "balance": 119.2727,
+    "balance_now": 119.2727,
+    "key": "lower_bar",
+    "label": "Bot 3: Lower bar",
+    "luck_note": "see analysis run",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 18.3388,
+    "total_usd": 19.52,
+    "trades": 14,
+    "winners": 9,
+    "worst_usd": -3.21
+   },
+   {
+    "balance": 129.1057,
+    "balance_now": 129.1057,
+    "key": "lower_bar_hold",
+    "label": "Bot 4: Lower bar + hold longer",
+    "luck_note": "see analysis run",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 26.6683,
+    "total_usd": 28.91,
+    "trades": 11,
+    "winners": 9,
+    "worst_usd": -3.73
+   },
+   {
+    "balance": 101.3316,
+    "balance_now": 101.3316,
+    "key": "calendar",
+    "label": "Bot 5: Calendar only",
+    "luck_note": "n/a, reads no news",
+    "luck_p": null,
+    "open": null,
+    "total_pct": 2.807,
+    "total_usd": 3.02,
+    "trades": 10,
+    "winners": 6,
+    "worst_usd": -12.13
+   },
+   {
+    "balance": 96.8888,
+    "balance_now": 96.8888,
+    "key": "opposite",
+    "label": "Bot 6: Opposite",
+    "luck_note": "need 10 trades",
+    "luck_p": null,
+    "open": null,
+    "total_pct": -2.9231,
+    "total_usd": -3.44,
+    "trades": 5,
+    "winners": 2,
+    "worst_usd": -3.86
+   }
+  ],
+  "generated_utc": "2026-11-22T10:17:37.658952+00:00",
+  "race_rows": 312,
+  "race_start": "2026-09-17T14:19:57.645833+00:00",
+  "started": true
+ }
+}

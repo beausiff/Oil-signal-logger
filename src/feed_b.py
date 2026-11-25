@@ -38,7 +38,11 @@ LEADERBOARD_B = "leaderboard_b"
 FEED_MARK = "B"
 
 # signals_b has the signals columns unchanged, plus ONE column appended at the end.
-SIGNALS_B_SCHEMA: List[str] = list(sheets.SCHEMAS[SIGNALS]) + ["feed"]
+# "Signals columns" stops at score_source. The main feed later gained context
+# columns after it (context_version onward); Feed B gathers no context, and
+# letting them in here would push "feed" along a tab that already holds rows.
+_MAIN_SIGNALS: List[str] = sheets.SCHEMAS[SIGNALS]
+SIGNALS_B_SCHEMA: List[str] = _MAIN_SIGNALS[: _MAIN_SIGNALS.index("score_source") + 1] + ["feed"]
 HEADLINES_B_SCHEMA: List[str] = list(sheets.SCHEMAS[HEADLINES])
 STATE_KEYS = ["start_utc", "requests_used", "last_main_run_utc", "position", "entry_price",
               "entry_utc", "entry_score", "best_price", "trade_id", "last_run_utc"]

@@ -85,6 +85,8 @@ def test_score_source_is_a_real_column():
 def test_score_source_is_appended_not_inserted():
     """Inserting it would shift every column of every existing row."""
     from src.sheets import SCHEMAS, SIGNALS
-    assert SCHEMAS[SIGNALS][-1] == "score_source"
+    # It was the last column when added; later columns (context_version and
+    # friends) are appended after it, so its position (index 24) never moves.
+    assert SCHEMAS[SIGNALS].index("score_source") == 24
     assert SCHEMAS[SIGNALS][:4] == [
         "run_utc", "run_chicago", "rules_version", "market_open"]

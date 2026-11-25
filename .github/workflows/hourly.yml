@@ -49,6 +49,10 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
+          # Optional. Used for the EIA weekly stocks context column. Without it
+          # the code falls back to the public DEMO_KEY, so leaving it unset is
+          # harmless (an unset secret reaches the job as an empty string).
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
           # OANDA practice mirror (fake money). Off unless the BROKER_MODE repository
           # variable is set to demo. Delete that variable to switch it off.
           BROKER_MODE: ${{ vars.BROKER_MODE }}

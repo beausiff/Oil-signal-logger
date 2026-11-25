@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -41,6 +42,10 @@ class Usage:
     output_tokens: int = 0
     attempts: int = 0
     error: str = ""
+    # Logged to the context tab only (src/context.py). Nothing reads them to
+    # decide anything, and as_note() below is unchanged.
+    latency_ms: int = 0
+    stop_reason: str = ""
 
     @property
     def cost_usd(self) -> float:
@@ -190,6 +195,7 @@ def score_news(
     for attempt in (1, 2):
         usage.attempts = attempt
 
+        started = time.monotonic()
         try:
             response = client.messages.create(
                 model=config.ANTHROPIC_MODEL,
@@ -199,6 +205,7 @@ def score_news(
                 messages=messages,
             )
         except Exception as exc:  # noqa: BLE001 - auth, rate limit, overload, network
+            usage.latency_ms += int((time.monotonic() - started) * 1000)
             last_error = "%s: %s" % (type(exc).__name__, exc)
             # Carry the reason into the sheet: the exception class alone does
             # not say whether it was the key, the model or the request shape.
@@ -211,6 +218,9 @@ def score_news(
                 return None, usage
             continue
 
+        usage.latency_ms += int((time.monotonic() - started) * 1000)
+        stop = getattr(response, "stop_reason", "")
+        usage.stop_reason = stop if isinstance(stop, str) else ""
         usage.input_tokens += getattr(response.usage, "input_tokens", 0) or 0
         usage.output_tokens += getattr(response.usage, "output_tokens", 0) or 0
 

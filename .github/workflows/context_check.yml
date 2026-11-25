@@ -1,0 +1,31 @@
+name: context_check
+
+# Hand started only. Fetches every external feed the hourly run logs as
+# context (FRED, EIA stocks, CFTC positioning) once and prints OK or FAILED for
+# each, with the parsed value. Writes nothing to the sheet. Run it to verify the
+# EIA and CFTC feeds, which cannot be tested from every machine.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check the context feeds
+        env:
+          # Optional. Without it the EIA call uses the public DEMO_KEY, which is
+          # rate limited. Harmless to leave unset.
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: python -m scripts.context_check

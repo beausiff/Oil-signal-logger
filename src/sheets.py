@@ -20,6 +20,7 @@ TRADES = "trades"
 HEADLINES = "headlines"
 STATE = "state"
 WEEKEND_GAPS = "weekend_gaps"
+CONTEXT = "context"
 
 SCHEMAS: Dict[str, List[str]] = {
     SIGNALS: [
@@ -31,6 +32,10 @@ SCHEMAS: Dict[str, List[str]] = {
         # Appended, never inserted: every column above keeps its position, so
         # rows written before this existed still read correctly.
         "score_source",
+        # Appended after score_source, same rule. Fail soft context columns
+        # (src/context.py): "c1" on every row the new code writes, then three
+        # values that stay blank whenever their data is unavailable.
+        "context_version", "vol20_pct", "ma200", "event_flags",
     ],
     TRADES: [
         "trade_id", "side", "entry_utc", "entry_price", "entry_score", "exit_utc",
@@ -49,6 +54,37 @@ SCHEMAS: Dict[str, List[str]] = {
         "weekend_key_headlines", "weekend_implied_action", "sunday_reopen_price",
         "monday_12utc_price", "gap_pct", "gap_direction_matched_weekend_score",
         "held_through_pnl_pct", "held_through_pnl_monday_pct", "weekend_signal_pnl_pct",
+    ],
+    # One wide row per run, keyed by run_utc. Written after the signals row,
+    # in its own try/except (src/main.py), so it can never affect a run.
+    CONTEXT: [
+        # run meta
+        "run_utc", "context_version", "github_run_id", "github_run_attempt",
+        "trigger", "git_sha", "rules_version", "model_id", "prompt_hash",
+        "llm_input_tokens", "llm_output_tokens", "llm_latency_ms", "llm_stop_reason",
+        "llm_attempts", "price_fetch_ms", "price_age_min", "run_duration_ms",
+        # news meta
+        "news_window_min", "news_fetched", "news_outside_window",
+        "news_duplicates_dropped", "news_over_cap_dropped", "news_new_sent",
+        "news_distinct_sources", "news_newest_age_min", "news_oldest_age_min",
+        "news_feed_errors",
+        # price path before this run, from earlier signals rows
+        "prior_move_1h_pct", "prior_move_4h_pct", "prior_move_24h_pct",
+        "prior_move_72h_pct", "hours_since_prev_run", "prev_score", "runs_last_24h",
+        # daily context
+        "daily_source", "daily_last_date", "daily_points", "daily_log_days_added",
+        "ma50", "ma200", "vol20_pct", "vol60_pct", "dist_ma200_pct",
+        "mom_21d_pct", "mom_63d_pct", "mom_252d_pct", "range20_pos",
+        # cross market (FRED), each with its own as of date
+        "wti_price", "wti_asof", "brent_wti_spread", "brent_wti_spread_asof",
+        "ovx", "ovx_asof", "usd_broad", "usd_broad_asof",
+        # events
+        "event_flags", "hours_to_next_eia", "days_to_next_opec",
+        # weekly fundamentals
+        "eia_crude_stocks_kbbl", "eia_crude_stocks_chg_kbbl", "eia_crude_stocks_period",
+        "cftc_mm_net", "cftc_mm_net_chg", "cftc_open_interest", "cftc_report_date",
+        # failures
+        "context_errors",
     ],
 }
 
@@ -96,6 +132,36 @@ def _row_from_dict(tab: str, values: dict) -> list:
     ]
 
 
+def _fit_columns(ws, count: int) -> None:
+    """Grow a tab's grid to at least `count` columns.
+
+    A tab made when the schema was shorter has no cells for a new column, and
+    Sheets refuses a write past the grid. Never shrinks.
+    """
+    if getattr(ws, "col_count", count) < count:
+        ws.resize(cols=count)
+
+
+def header_extension(current: List[str], wanted: List[str]) -> Optional[List[str]]:
+    """The header cells to add when `current` is a strict prefix of `wanted`.
+
+    An empty row gets the whole header. None means nothing to do or nothing
+    safe to do: an identical header, or one that differs anywhere but the end.
+    In the last case the columns are not ours to rearrange, so they are left
+    alone.
+    """
+    trimmed = list(current)
+    while trimmed and trimmed[-1] == "":
+        trimmed.pop()
+    if not trimmed:
+        return list(wanted)
+    if len(trimmed) >= len(wanted):
+        return None
+    if trimmed != wanted[: len(trimmed)]:
+        return None
+    return wanted[len(trimmed):]
+
+
 class SheetsClient:
     """Thin gspread wrapper. One sheet, five tabs."""
 
@@ -134,6 +200,7 @@ class SheetsClient:
                 changed.append("created %s" % tab)
             current = ws.row_values(1)
             if current != header:
+                _fit_columns(ws, len(header))
                 ws.update(
                     range_name="A1:%s1" % column_letter(len(header) - 1),
                     values=[header],
@@ -149,6 +216,37 @@ class SheetsClient:
             except Exception:  # noqa: BLE001 - cosmetic only
                 pass
         return changed
+
+    def ensure_columns(self, tab: str) -> List[str]:
+        """The cheap per run guard: make `tab` carry every column of its schema.
+
+        Creates the tab if it is missing, and appends only the missing header
+        cells when the sheet's header is an older, shorter version of the
+        schema (the way `score_source` once was). Never rewrites or reorders an
+        existing header cell. Returns what changed. Callers wrap it in a
+        try/except: it must never stop a run.
+        """
+        import gspread
+
+        header = SCHEMAS[tab]
+        try:
+            ws = self.worksheet(tab)
+        except gspread.WorksheetNotFound:
+            ws = self._sheet.add_worksheet(title=tab, rows=2000, cols=max(len(header), 10))
+            self._tabs[tab] = ws
+            ws.update(range_name="A1:%s1" % column_letter(len(header) - 1), values=[header])
+            return ["created %s" % tab]
+
+        missing = header_extension(ws.row_values(1), header)
+        if not missing:
+            return []
+        _fit_columns(ws, len(header))
+        start = len(header) - len(missing)
+        ws.update(
+            range_name="%s1:%s1" % (column_letter(start), column_letter(len(header) - 1)),
+            values=[missing],
+        )
+        return ["header extended on %s: %s" % (tab, ", ".join(missing))]
 
     # ---------------------------------------------------------------- read --
     def all_values(self, tab: str) -> List[List[str]]:
