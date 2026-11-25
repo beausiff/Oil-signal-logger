@@ -1,10 +1,10 @@
 {
  "benchmark": {
-  "balance_now": 97.1271,
+  "balance_now": 98.5096,
   "first_price": 92.59,
-  "last_price": 89.93,
-  "pct": -2.8729,
-  "usd": -2.66
+  "last_price": 91.21,
+  "pct": -1.4904,
+  "usd": -1.38
  },
  "bots": [
   {
@@ -37,12 +37,17 @@
   },
   {
    "balance": 100.0,
-   "balance_now": 100.0,
+   "balance_now": 100.0219,
    "key": "lower_bar",
    "label": "Bot 3: Lower bar",
    "luck_note": "need 10 trades",
    "luck_p": null,
-   "open": null,
+   "open": {
+    "entry_price": 91.14,
+    "entry_utc": "2026-11-24T19:05:35.381780+00:00",
+    "side": "long",
+    "unrealised_usd": 0.02
+   },
    "total_pct": 0,
    "total_usd": 0,
    "trades": 0,
@@ -51,12 +56,17 @@
   },
   {
    "balance": 100.0,
-   "balance_now": 100.0,
+   "balance_now": 100.0219,
    "key": "lower_bar_hold",
    "label": "Bot 4: Lower bar + hold longer",
    "luck_note": "need 10 trades",
    "luck_p": null,
-   "open": null,
+   "open": {
+    "entry_price": 91.14,
+    "entry_utc": "2026-11-24T19:05:35.381780+00:00",
+    "side": "long",
+    "unrealised_usd": 0.02
+   },
    "total_pct": 0,
    "total_usd": 0,
    "trades": 0,
@@ -65,7 +75,7 @@
   },
   {
    "balance": 100.0,
-   "balance_now": 96.77,
+   "balance_now": 98.1481,
    "key": "calendar",
    "label": "Bot 5: Calendar only",
    "luck_note": "n/a, reads no news",
@@ -74,7 +84,7 @@
     "entry_price": 92.88,
     "entry_utc": "2026-11-23T06:05:38.300341+00:00",
     "side": "long",
-    "unrealised_usd": -3.0
+    "unrealised_usd": -1.72
    },
    "total_pct": 0,
    "total_usd": 0,
@@ -97,8 +107,8 @@
    "worst_usd": 0
   }
  ],
- "generated_utc": "2026-11-23T18:05:35.607123+00:00",
- "race_rows": 32,
+ "generated_utc": "2026-11-25T12:05:36.715939+00:00",
+ "race_rows": 74,
  "race_start": "2026-11-22T10:17:37.658952+00:00",
  "started": true
 }
