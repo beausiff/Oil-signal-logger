@@ -285,3 +285,25 @@ Setup:
 5. Add the variable `BROKER_MODE` = `demo`. That switches it on.
 
 To switch it off, delete `BROKER_MODE` or set it to `off`.
+
+---
+
+## Feed B: the same six bots on NewsAPI.ai
+
+A second, fully isolated feed runs the six bot rules on NewsAPI.ai (Event
+Registry) headlines instead of Google News RSS, so the two feeds can be compared
+pair by pair (Bot 1 vs Bot 1B ... Bot 6 vs Bot 6B). Paper only, no broker.
+
+- Workflow `feed_b` starts after every `hourly` run (`workflow_run`), has its own
+  concurrency group `oil-feed-b` and always exits 0, so it cannot break or delay
+  the hourly run. `workflow_dispatch` modes: `run`, and `probe_filter` (one off).
+- It reads the latest v2 row of `signals`, rebuilds the same news window from
+  NewsAPI.ai (at most 2 requests a run, 1,500 for its whole life, counted in the
+  sheet tab `feed_b_state` before each request), scores it with the same prompt
+  and writes the same row shape to `signals_b` and `headlines_b`. Prices and times
+  are copied from the main row. A failed fetch writes a blank score row.
+- `leaderboard_b` holds the six B bots and the paired comparison over the hours
+  both feeds logged. `backup/leaderboard_b.json` is written by the weekly backup.
+- Code: `src/news_b.py`, `src/feed_b.py`, `scripts/leaderboard_b.py`,
+  `scripts/feed_b_probe.py`, `scripts/feed_b_page.py`. Secret: `NEWSAPI_AI_KEY`
+  (sent in the request body, never printed or stored).

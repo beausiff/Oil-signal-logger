@@ -21,6 +21,9 @@ from src import sheets
 from src.sheets import SCHEMAS
 
 OUT_DIR = "backup"
+# Feed B tabs (src/feed_b.py). Not in sheets.SCHEMAS on purpose; a tab that does
+# not exist yet is skipped by the loop below, like any other.
+FEED_B_TABS = ["signals_b", "headlines_b", "leaderboard_b", "feed_b_state"]
 
 
 def main() -> int:
@@ -28,7 +31,7 @@ def main() -> int:
     os.makedirs(OUT_DIR, exist_ok=True)
     total = 0
 
-    for tab in sorted(SCHEMAS):
+    for tab in sorted(SCHEMAS) + FEED_B_TABS:
         try:
             values = client.all_values(tab)
         except Exception as error:  # noqa: BLE001 - a missing tab must not lose the others

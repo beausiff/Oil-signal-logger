@@ -18,11 +18,12 @@ import argparse
 import csv
 import html
 import math
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from scripts import leaderboard, replay
+from scripts import feed_b_page, leaderboard, replay
 from scripts.trade_story import trim
 from src import rules
 from src.outcomes import parse_utc, to_float
@@ -726,7 +727,7 @@ def how_it_runs_html() -> str:
 
 # ------------------------------------------------------------------ build --
 
-def build(rows: List[dict], simulate_race: int = 0) -> str:
+def build(rows: List[dict], simulate_race: int = 0, rows_b: Optional[List[dict]] = None) -> str:
     rows = sorted((dict(r) for r in rows), key=lambda r: str(r.get("run_utc", "")))
     if simulate_race > 0:
         for row in rows[-simulate_race:]:
@@ -747,6 +748,7 @@ def build(rows: List[dict], simulate_race: int = 0) -> str:
         scoreboard_html(table, race),
         race_chart_html(race),
         bot_cards_html(race, table, by_run),
+        feed_b_page.section_html(rows, sorted((dict(r) for r in (rows_b or [])), key=lambda r: str(r.get("run_utc", "")))),
         archive_html(archive, by_run),
         how_it_runs_html(),
         "<footer>Simulated throughout. Bot 1 is mirrored on an OANDA practice account, so no real money is at risk.</footer>",
@@ -771,13 +773,18 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Build the Oil Bot Race page fragment.")
     parser.add_argument("--csv", default="backup/signals.csv")
     parser.add_argument("--out", default="backup/race_page.html")
+    parser.add_argument("--csv-b", default="backup/signals_b.csv", help="feed B rows; missing file means none yet")
     # Preview and testing only: relabels the last N rows as race rows, in memory.
     parser.add_argument("--simulate-race", type=int, default=0, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
     with open(args.csv, newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-    page = build(rows, simulate_race=args.simulate_race)
+    rows_b = []
+    if os.path.exists(args.csv_b):
+        with open(args.csv_b, newline="", encoding="utf-8") as handle:
+            rows_b = list(csv.DictReader(handle))
+    page = build(rows, simulate_race=args.simulate_race, rows_b=rows_b)
     with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(page)
     print(summary(rows, page, args.simulate_race))

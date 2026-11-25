@@ -13,3 +13,5 @@ venv/
 # commits. Exactly one more path, not a wider exception.
 !backup/leaderboard.json
 .pytest_cache/
+# Feed B leaderboard, written by scripts.leaderboard_b in the weekly backup. One more exact path.
+!backup/leaderboard_b.json

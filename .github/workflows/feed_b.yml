@@ -1,0 +1,77 @@
+name: feed_b
+
+# Feed B: the same six bot rules on NewsAPI.ai headlines, paper only, compared
+# pairwise with the main bots. Fully isolated from the hourly run: it starts
+# AFTER an hourly run has finished, has its own concurrency group and never
+# fails (src/feed_b.py always exits 0), so it cannot break or delay `hourly`.
+#
+# mode run          one feed B run (the default, and what workflow_run does)
+# mode probe_filter the one off source filter probe, at most 12 NewsAPI.ai
+#                   requests, output committed to backtest/feed_b_filter_probe.txt
+
+on:
+  workflow_run:
+    workflows: ["hourly"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "run, or probe_filter (one off, at most 12 requests)"
+        type: choice
+        options: [run, probe_filter]
+        default: run
+
+permissions:
+  contents: write
+
+# Its own queue. Never the hourly bot's group (oil-signal-logger).
+concurrency:
+  group: oil-feed-b
+  cancel-in-progress: false
+
+jobs:
+  feed_b:
+    # A cancelled or skipped hourly run wrote no row, so there is nothing to follow.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run feed B
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          NEWSAPI_AI_KEY: ${{ secrets.NEWSAPI_AI_KEY }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = "probe_filter" ]; then
+            python -m scripts.feed_b_probe
+          else
+            python -m src.feed_b
+          fi
+
+      # Only the probe writes a file. Missing file means nothing to commit.
+      - name: Commit the probe output
+        if: ${{ inputs.mode == 'probe_filter' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          [ -e backtest/feed_b_filter_probe.txt ] && git add backtest/feed_b_filter_probe.txt
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "Feed B filter probe output"
+            git pull --rebase -q origin main || true
+            git push
+          fi
