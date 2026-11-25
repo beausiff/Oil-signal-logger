@@ -36,6 +36,10 @@ jobs:
       - name: Run the pilot
         env:
           NEWSAPI_AI_KEY: ${{ secrets.NEWSAPI_AI_KEY }}
+          # The probe showed about 2,000 matching articles a day (20 pages), so the
+          # defaults (6 pages a day, 300 requests) would cut most days short.
+          PILOT_PAGE_LIMIT: "30"
+          PILOT_MAX_REQUESTS: "700"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC }}
           ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           PROBE_ONLY: ${{ inputs.probe_only }}

@@ -53,12 +53,12 @@ ENDPOINT = "https://eventregistry.org/api/v1/article/getArticles"
 KEY_ENV = "NEWSAPI_AI_KEY"
 NO_KEY_LINE = "NO KEY: secret NEWSAPI_AI_KEY is not set"
 
-MAX_REQUESTS = 300
+MAX_REQUESTS = int(os.environ.get("PILOT_MAX_REQUESTS") or 300)
 MAX_CALLS = 60
 MAX_ROWS = 56
 SAMPLE_DAYS = 25               # rows from the last 25 days before the run date
 PAGE_SIZE = 100
-PAGE_LIMIT = 6                 # per UTC day
+PAGE_LIMIT = int(os.environ.get("PILOT_PAGE_LIMIT") or 6)                 # per UTC day
 MIN_PAIRS = 30
 KEEP_HEADLINES = config.MAX_HEADLINES_PER_RUN   # 40
 V1_WINDOW_MINUTES = config.NEWS_LOOKBACK_MINUTES  # 90
