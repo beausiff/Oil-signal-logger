@@ -1,0 +1,77 @@
+FEED B SOURCE FILTER PROBE, 2026-11-25 13:27 UTC
+Rule (fixed before running): tightest of end percentile 30, else 50, for which the API accepts the fields (no error and a smaller totalResults than unfiltered) AND the last 90 minutes hold at least 15 articles; otherwise no filter.
+
+== none (no filter) ==
+fields accepted by the API: yes
+totalResults for the days queried: 1148
+requests used: 2
+articles published in the last 90 minutes: 127
+top 15 sources in the last 90 minutes:
+     4  SabaNet - Yemen News Agency
+     4  الخارجية الأمريكية لشفق نيوز: مجاميع مدعومة إيرانياً تشكل خطراً على 4 وتردع استثماراً في العراق
+     4  The Insight International
+     4  Saudi Gazette
+     3  IRNA English
+     3  Mehr News Agency
+     2  Seeking Alpha
+     2  The National
+     2  Bloomberg Business
+     2  newKerala.com
+     2  Washington Examiner
+     2  TASS
+     2  UAWire
+     2  FXStreet
+     2  en.vestikavkaza.ru
+key sources present in the last 90 minutes: Bloomberg, OilPrice.com
+
+== p30 (startSourceRankPercentile 0, endSourceRankPercentile 30) ==
+fields accepted by the API: yes
+totalResults for the days queried: 311
+requests used: 1
+articles published in the last 90 minutes: 29
+top 15 sources in the last 90 minutes:
+     3  Mehr News Agency
+     2  Seeking Alpha
+     2  Bloomberg Business
+     2  The Times of India
+     2  Anadolu Ajansı
+     1  Asianet News Network Pvt Ltd
+     1  Yahoo Sports
+     1  Economic Times
+     1  Zero Hedge
+     1  Prothomalo
+     1  وكاله عمون الاخباريه
+     1  India Today
+     1  RTE.ie
+     1  Investing.com
+     1  CNA
+key sources present in the last 90 minutes: Bloomberg
+
+== p50 (startSourceRankPercentile 0, endSourceRankPercentile 50) ==
+fields accepted by the API: yes
+totalResults for the days queried: 503
+requests used: 1
+articles published in the last 90 minutes: 49
+top 15 sources in the last 90 minutes:
+     3  Mehr News Agency
+     2  Seeking Alpha
+     2  Bloomberg Business
+     2  Washington Examiner
+     2  TASS
+     2  FXStreet
+     2  The Times of India
+     2  Anadolu Ajansı
+     2  KyivPost
+     1  Asianet News Network Pvt Ltd
+     1  Yahoo Sports
+     1  Express & Star
+     1  Economic Times
+     1  Zero Hedge
+     1  Prothomalo
+key sources present in the last 90 minutes: Bloomberg, OilPrice.com
+
+p30 accepted by the rule's test: yes
+p50 accepted by the rule's test: yes
+DECISION: endSourceRankPercentile 30
+requests used by this probe: 4 (limit 12)
+lifetime feed B requests now: 4 of 1500
