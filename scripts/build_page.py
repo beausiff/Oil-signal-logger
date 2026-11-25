@@ -23,7 +23,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from scripts import feed_b_page, leaderboard, replay
+from scripts import cohort2_page, feed_b_page, leaderboard, replay
 from scripts.trade_story import trim
 from src import rules
 from src.outcomes import parse_utc, to_float
@@ -41,7 +41,8 @@ RULE_TEXT = {
                 "The others need to beat this.",
     "opposite": "Does the reverse of Bot 1. If this one wins, the signal is backwards.",
 }
-REASON_TEXT = {"friday": "Friday close", "stop": "stop loss", "reversal": "score flipped"}
+REASON_TEXT = {"friday": "Friday close", "stop": "stop loss", "reversal": "score flipped",
+               "time": "24 hour limit", "trend_flip": "trend flipped"}
 
 LEARNED = [
     ("Does the score predict where oil goes next?", "No link at 1, 4, 24 or 72 hours", "No edge found"),
@@ -748,6 +749,7 @@ def build(rows: List[dict], simulate_race: int = 0, rows_b: Optional[List[dict]]
         scoreboard_html(table, race),
         race_chart_html(race),
         bot_cards_html(race, table, by_run),
+        cohort2_page.section_html(rows),
         feed_b_page.section_html(rows, sorted((dict(r) for r in (rows_b or [])), key=lambda r: str(r.get("run_utc", "")))),
         archive_html(archive, by_run),
         how_it_runs_html(),
