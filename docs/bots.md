@@ -2,7 +2,7 @@
 
 This file lists every bot in the race, the two cohorts, and how missing data is handled.
 
-## The 14 bots
+## The 16 bots
 
 All bots read the same logged news scores and Brent prices. They are replayed over the logged rows, so none of them trades live. Bot 1 is the only bot that matches the live paper account.
 
@@ -24,8 +24,10 @@ Bot 1 enters long at a score of +6 or more and short at a score of −6 or less.
 | 12 | event_standaside | Bot 1, but it opens no new trade on a row flagged eia_window or opec_day. Exits still happen. | 2 |
 | 13 | vol_size | Bot 1 trades, sized at 2 divided by the 20 day volatility at entry, kept between 0.25 and 2. | 2 |
 | 14 | safeguards | Bots 8, 11, 12 and 13 together. | 2 |
+| 15 | trend_bar | Bot 1, but the entry bar drops to +4 or −4 when the trend agrees. That means a long with price above the 200 day average, or a short with price below it. Otherwise the normal bar of +6 or −6 applies. | 2 |
+| 16 | trend_only | Reads no news. Goes long above the 200 day average and short below it. Leaves when price crosses to the other side, or at the Friday close. | 2 |
 
-Bots 1 to 6 were registered on 2026-11-22. Bots 7 to 14 were registered on 2026-11-25. None of them may be edited during the race.
+Bots 1 to 6 were registered on 2026-11-22. Bots 7 to 14 were registered on 2026-11-25. Bots 15 and 16 were added on the same day, before the cohort 2 race started. None of them may be edited during the race.
 
 There is also a reference line, "Bot 1 over the same window". It is not a bot. It is Bot 1's rules run over the same rows as cohort 2, so each new bot can be compared like for like.
 
@@ -33,11 +35,15 @@ There is also a reference line, "Bot 1 over the same window". It is not a bot. I
 
 Cohort 1 is bots 1 to 6. They race over every row logged under rules version v2, exactly as before.
 
-Cohort 2 is bots 7 to 14 and the reference. They need the context columns, which only exist from the first row logged with a context_version. Judging them on older rows would be cheating, because they were registered after those rows were seen. So cohort 2 races only over v2 rows from the first row that has a context_version. Each bot starts flat there with $100.
+Cohort 2 is bots 7 to 16 and the reference. They need the context columns, which only exist from the first row logged with a context_version. Judging them on older rows would be cheating, because they were registered after those rows were seen. So cohort 2 races only over v2 rows from the first row that has a context_version. Each bot starts flat there with $100.
 
 Until that first row exists, cohort 2 shows "not started" with 0 trades.
 
 Compare a cohort 2 bot with the reference, not with the cohort 1 table. The two cohorts cover different rows.
+
+Bot 15 tests whether the trend should make the bot quicker to act on news. Bot 16 is a yardstick, so if Bot 11 beats Bot 1 you can see whether the news or the trend did the work.
+
+Bot 16 gets no luck p, because it reads no scores. Equal to the average counts as no trend, so Bot 16 does not trade and Bot 15 uses the normal bar.
 
 ## How time exits, stops and sizes work
 
@@ -52,17 +58,17 @@ This rule is the same for every bot.
 
 * If a value is blank on a row, use the most recent non blank value from earlier rows in the same race.
 * If there has never been one, skip that one feature for that decision. The bot then acts like Bot 1 for that feature.
-* Each bot counts these skips in `missing_input_decisions`. Only entry decisions count.
+* Each bot counts these skips in `missing_input_decisions`. Only entry decisions count. For Bot 15 a skip counts only when the score is between the two bars with enough confidence, so the average could have changed the outcome. For Bot 16 every row where it could have entered counts.
 * A blank `event_flags` on a row that has a context_version means no event. It is not missing.
 * A volatility of 0 or less is treated as missing.
 
 ## Luck
 
-With 14 bots, one will lead by luck, and Bot 1 will often be that one. A lead means little until it repeats in a second period.
+With 16 bots, one will lead by luck, and Bot 1 will often be that one. A lead means little until it repeats in a second period.
 
 Each bot with at least 10 trades and 60 rows gets a luck p. It is the share of score shifts that match or beat the bot's real total. The shifts slide the scores round the clock, one offset at a time. Prices, the 200 day average, volatility and event flags stay where they are. The test is deterministic, so the same rows always give the same p.
 
 ## Where the numbers go
 
 * `backup/leaderboard.json` and the `leaderboard` tab. Bots 1 to 6 keep their shape. Cohort 2 sits in a `cohort2` section, and the tab shows it as a block below the first table.
-* `backup/bot_trades.json` and the `bot_trades` tab list every closed trade and open position for all 14 bots and the reference.
+* `backup/bot_trades.json` and the `bot_trades` tab list every closed trade and open position for all 16 bots and the reference.

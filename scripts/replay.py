@@ -96,7 +96,7 @@ def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: 
                    stop_pct: Optional[float] = None, vol_stop_mult: Optional[float] = None,
                    max_hold_hours: Optional[float] = None, trend_filter: bool = False,
                    event_standaside: bool = False, vol_size: bool = False,
-                   info: Optional[dict] = None):
+                   trend_entry: Optional[int] = None, info: Optional[dict] = None):
     """The replay with some switches changed. Live rules are untouched.
 
     entry=N overrides the entry threshold to +/-N for this call only, in
@@ -117,6 +117,10 @@ def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: 
       event_standaside=True no new entry on a row flagged eia_window or opec_day.
       vol_size=True         size = clamp(2 / vol20_pct at entry, 0.25, 2); each
                             trade records "size". pnl_usd and pnl_pct stay per unit.
+      trend_entry=4         the entry bar drops to +/-4 when the trend agrees
+                            (long with price above ma200, short with price below
+                            it); otherwise the normal bar applies. Equal to ma200
+                            is no agreement. Set per row, config restored after.
       info={}               filled with missing_input_decisions,
                             missing_by_feature, blocked_entries and "open" (the
                             open trade's size and stop width).
@@ -127,7 +131,7 @@ def replay_variant(rows: List[dict], entry: Optional[int] = None, use_reversal: 
     """
     extras = {"stop_pct": stop_pct, "vol_stop_mult": vol_stop_mult, "max_hold_hours": max_hold_hours,
               "trend_filter": trend_filter, "event_standaside": event_standaside,
-              "vol_size": vol_size, "info": info}
+              "vol_size": vol_size, "trend_entry": trend_entry, "info": info}
     if entry is None:
         return _replay_loop(rows, use_reversal=use_reversal, **extras)
     saved = (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE)
@@ -142,23 +146,24 @@ def _replay_loop(rows: List[dict], use_reversal: bool = True, *,
                  stop_pct: Optional[float] = None, vol_stop_mult: Optional[float] = None,
                  max_hold_hours: Optional[float] = None, trend_filter: bool = False,
                  event_standaside: bool = False, vol_size: bool = False,
-                 info: Optional[dict] = None):
+                 trend_entry: Optional[int] = None, info: Optional[dict] = None):
     stop_override = stop_pct is not None or vol_stop_mult is not None
-    if not stop_override:
+    if not stop_override and trend_entry is None:
         return _loop(rows, use_reversal, None, None, max_hold_hours, trend_filter,
-                     event_standaside, vol_size, info)
-    # rules.trailing_stop_hit reads config.TRAILING_STOP_PCT, so the width in
-    # force for the open trade is set there for the call and restored after.
-    saved = config.TRAILING_STOP_PCT
+                     event_standaside, vol_size, info, None)
+    # rules.trailing_stop_hit reads config.TRAILING_STOP_PCT and rules.decide
+    # reads the entry scores, so the width and the bar in force for this row
+    # are set there for the call and restored after, whatever happens.
+    saved = (config.TRAILING_STOP_PCT, config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE)
     try:
         return _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_filter,
-                     event_standaside, vol_size, info)
+                     event_standaside, vol_size, info, trend_entry)
     finally:
-        config.TRAILING_STOP_PCT = saved
+        config.TRAILING_STOP_PCT, config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = saved
 
 
 def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_filter,
-          event_standaside, vol_size, info):
+          event_standaside, vol_size, info, trend_entry):
     position = FLAT
     entry_source = ""
     last_price = None
@@ -167,7 +172,9 @@ def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_fil
 
     stop_override = stop_pct is not None or vol_stop_mult is not None
     default_stop = config.TRAILING_STOP_PCT
-    uses_context = bool(vol_stop_mult is not None or trend_filter or event_standaside or vol_size)
+    uses_context = bool(vol_stop_mult is not None or trend_filter or event_standaside or vol_size
+                        or trend_entry is not None)
+    base_long, base_short = config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE
     carry = ContextCarry()
     trade_ctx = {}   # per open trade: stop width and size, fixed at entry
     missing_decisions = 0
@@ -192,6 +199,22 @@ def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_fil
         before = position
         if stop_override:
             config.TRAILING_STOP_PCT = trade_ctx.get("stop_pct", default_stop) if before.is_open else default_stop
+        if trend_entry is not None:
+            bar_long, bar_short = base_long, base_short
+            if carry.ma200 is not None and price is not None:
+                if price > carry.ma200:
+                    bar_long = trend_entry
+                elif price < carry.ma200:
+                    bar_short = -trend_entry
+            config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE = bar_long, bar_short
+            if (carry.ma200 is None and not before.is_open and score is not None and price is not None
+                    and confidence in config.ENTRY_CONFIDENCES and rules.is_market_open(local)
+                    and rules.entries_allowed(local)
+                    and (base_long > score >= trend_entry or base_short < score <= -trend_entry)):
+                # Only a decision the trend could have changed counts: a score
+                # between the two bars, with nothing else in the way.
+                missing_decisions += 1
+                missing_by_feature["ma200"] = missing_by_feature.get("ma200", 0) + 1
         decision = rules.decide(
             score=score, confidence=confidence, position=position,
             now_chicago=local, price=price,
@@ -292,6 +315,77 @@ def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_fil
         info["blocked_entries"] = blocked
         info["open"] = dict(trade_ctx) if position.is_open else None
     return trades, position, skipped_no_price
+
+
+def trend_only(rows: List[dict], with_position: bool = False, info: Optional[dict] = None):
+    """A yardstick that reads no news at all: the 200 day trend and nothing else.
+
+    When flat on an open market row with a price and a known ma200, with new
+    entries allowed (the same Friday rule as every bot), go long if the price
+    is above ma200 and short if it is below. Equal is no trade. While in a
+    trade, close with reason "trend_flip" when the price is strictly on the
+    other side of ma200, or at the Friday close and the late weekend close,
+    reason "friday", exactly as the other bots. No stop, no reversal exit. One
+    action per row, so after a flip the bot may enter the new side on a later
+    row. ma200 is carried forward from the latest known value; with none ever
+    known the bot stays flat and counts the row in missing_input_decisions.
+
+    Trades have the same keys as replay trades. with_position=True returns
+    (trades, open position) like calendar_only.
+    """
+    position = FLAT
+    trades = []
+    carry = ContextCarry()
+    last_price = None
+    missing = 0
+
+    for row in rows:
+        when = parse_utc(row.get("run_chicago", ""))
+        if when is None:
+            continue
+        local = when.astimezone(rules.CHICAGO)
+        carry.observe(row)
+        price = to_float(row.get("brent_price"))
+        is_open = rules.is_market_open(local)
+        run_utc = str(row.get("run_utc", ""))
+        ma = carry.ma200
+
+        if position.is_open:
+            exit_price = price if price is not None else last_price
+            reason = None
+            if rules.is_weekend_shutdown(local):
+                reason = "friday"
+            elif is_open and rules.is_friday_close_run(local):
+                reason = "friday"
+            elif is_open and price is not None and ma is not None and (
+                    (position.side == "long" and price < ma) or (position.side == "short" and price > ma)):
+                reason = "trend_flip"
+            if reason and exit_price is not None:
+                usd, pct = rules.pnl(position.side, position.entry_price or 0.0, exit_price)
+                entry_at, exit_at = parse_utc(position.entry_utc or ""), parse_utc(run_utc)
+                hours = round((exit_at - entry_at).total_seconds() / 3600.0, 1) if (entry_at and exit_at) else ""
+                trades.append({"side": position.side, "entry_utc": position.entry_utc,
+                               "entry_price": position.entry_price, "entry_score": 0,
+                               "exit_utc": run_utc, "exit_price": exit_price, "reason": reason,
+                               "pnl_usd": usd, "pnl_pct": pct, "hours": hours, "source": "trend"})
+                position = FLAT
+        elif is_open and price is not None and rules.entries_allowed(local):
+            if ma is None:
+                missing += 1
+            elif price != ma:
+                side = "long" if price > ma else "short"
+                position = Position(side=side, entry_price=price, entry_utc=run_utc, entry_score=0,
+                                    best_price=price, trade_id="TREND-%s-%s" % (run_utc[:16], side[0].upper()))
+
+        if price is not None:
+            last_price = price
+
+    if info is not None:
+        info["missing_input_decisions"] = missing
+        info["missing_by_feature"] = {"ma200": missing} if missing else {}
+        info["blocked_entries"] = {}
+        info["open"] = {} if position.is_open else None
+    return (trades, position) if with_position else trades
 
 
 def _trading_week(local):

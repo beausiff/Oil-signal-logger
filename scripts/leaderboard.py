@@ -1,4 +1,4 @@
-"""Fourteen bots, two cohorts, one leaderboard. Version 2 of the experiment.
+"""Sixteen bots, two cohorts, one leaderboard. Version 2 of the experiment.
 
     python -m scripts.leaderboard
 
@@ -13,13 +13,13 @@ before it means anything, which is why bots 1 to 4 and 6 also get a luck p: how
 often the same bot, run on the same prices with the scores slid round the clock
 (scripts.replay.shuffled_strategy), matches or beats its real total.
 
-Bots 7 to 14 were registered on 2026-11-25, after bots 1 to 6 had been racing,
-and need the context columns (context_version c1, vol20_pct, ma200,
+Bots 7 to 16 were registered on 2026-11-25, after bots 1 to 6 had been racing
+(bots 15 and 16 before the cohort 2 race started), and need the context columns (context_version c1, vol20_pct, ma200,
 event_flags). Judging them on rows logged before they existed would be
 cheating, so they form cohort 2: they race only over v2 rows from the first
 row that has a context_version, each starting flat there. Cohort 1 (bots 1 to
 6) is untouched. Cohort 2 also gets a reference entry, Bot 1's rules over the
-same rows, so every new bot can be compared like for like. With 14 bots Bot 1
+same rows, so every new bot can be compared like for like. With 16 bots Bot 1
 will lead some of the time by luck alone.
 
 Writes backup/leaderboard.json and the `leaderboard` sheet tab, and every
@@ -59,12 +59,12 @@ BOTS = [
     {"key": "opposite", "label": "Bot 6: Opposite", "variant": {}, "negate": True},
 ]
 
-# Registered on 2026-11-25, after bots 1 to 6 were racing. Must not be edited
+# Bots 7 to 16 were registered on 2026-11-25, after bots 1 to 6 were racing. Must not be edited
 # during the race, for the same reason: changing a bot afterwards would mean it
 # was chosen with the results in view. Each differs from Bot 1 by one change
 # unless stated. They are a separate list, not appended to BOTS, because
 # scripts/build_page.py walks BOTS and needs rule text and a card for every
-# entry; ALL_BOTS is the full registered order, 1 to 14.
+# entry; ALL_BOTS is the full registered order, 1 to 16.
 NEW_BOTS = [
     {"key": "wide_stop", "label": "Bot 7: Wide stop", "cohort": 2,
      "variant": {"stop_pct": 8.0}},
@@ -83,6 +83,12 @@ NEW_BOTS = [
     {"key": "safeguards", "label": "Bot 14: Safeguards", "cohort": 2,
      "variant": {"vol_stop_mult": 3.0, "trend_filter": True,
                  "event_standaside": True, "vol_size": True}},
+    # Bots 15 and 16 were added on 2026-11-25 as well, before the cohort 2 race
+    # started (no row had a context_version yet), so they race from its first row.
+    {"key": "trend_bar", "label": "Bot 15: Trend lowers the bar", "cohort": 2,
+     "variant": {"trend_entry": 4}},
+    {"key": "trend_only", "label": "Bot 16: Trend only", "cohort": 2,
+     "trend_only": True},    # reads no news
 ]
 ALL_BOTS = BOTS + NEW_BOTS
 
@@ -127,6 +133,10 @@ def run_bot_full(bot: dict, rows: List[dict]):
     if bot.get("calendar"):
         trades, position = replay.calendar_only(rows, use_stop=False, with_position=True)
         return trades, position, {}
+    if bot.get("trend_only"):
+        info = {}
+        trades, position = replay.trend_only(rows, with_position=True, info=info)
+        return trades, position, info
     if bot.get("negate"):
         rows = negated(rows)
     info = {}
@@ -199,7 +209,7 @@ def compound(trades: List[dict], start: float = STARTING_BALANCE) -> float:
 
 
 def _luck(bot: dict, race: List[dict], trades: List[dict], total: float, with_luck: bool):
-    if bot.get("calendar"):
+    if bot.get("calendar") or bot.get("trend_only"):
         return None, "n/a, reads no news"
     if len(trades) < MIN_TRADES_FOR_LUCK:
         return None, "need %d trades" % MIN_TRADES_FOR_LUCK
@@ -277,7 +287,7 @@ def _benchmark(race: List[dict], now_price: Optional[float]) -> dict:
 
 
 def _cohort2_section(rows: List[dict], with_luck: bool) -> dict:
-    """Bots 7 to 14 plus the reference, over their own rows only."""
+    """Bots 7 to 16 plus the reference, over their own rows only."""
     race = cohort2_rows(rows)
     if not race:
         return {"started": False, "state": "not started",
@@ -297,7 +307,7 @@ def standings(rows: List[dict], with_luck: bool = True) -> dict:
     """The table. with_luck=False skips the shifted null, which costs seconds.
 
     "bots" is cohort 1 (bots 1 to 6) exactly as before, each with cohort 1
-    added. "cohort2" is the separate section for bots 7 to 14 and the reference.
+    added. "cohort2" is the separate section for bots 7 to 16 and the reference.
     """
     race = race_rows(rows)
     if not race:
@@ -367,7 +377,7 @@ def write_tab(client, table: dict, updated_utc: Optional[str] = None) -> None:
     c2 = table.get("cohort2")
     if c2:
         rows.append([])
-        rows.append(["cohort 2", "Bots 7 to 14, racing from the first row with a context_version",
+        rows.append(["cohort 2", "Bots 7 to 16, racing from the first row with a context_version",
                      c2["state"], "", "", "", "", "", "", "", "", "",
                      "started %s, %d rows" % (c2["start_utc"], c2["rows"]) if c2["started"] else c2["note"], 2])
         rows.append(list(TAB_HEADER))
@@ -443,7 +453,7 @@ def bot_trade_records(bot: dict, rows: List[dict]) -> List[dict]:
             "exit_utc": exit_utc, "exit_price": exit_price, "exit_reason": reason,
             "pnl_pct": pnl_pct, "size": size, "pnl_pct_sized": round(pnl_pct * size, 4),
             "hours_held": hours,
-            "stop_pct": "" if bot.get("calendar") else t.get("stop_pct", config.TRAILING_STOP_PCT),
+            "stop_pct": "" if (bot.get("calendar") or bot.get("trend_only")) else t.get("stop_pct", config.TRAILING_STOP_PCT),
             "ma200": "" if ma200 is None else ma200, "vol20_pct": "" if vol is None else vol,
             "event_flags": flags, "mfe_pct": mfe, "mae_pct": mae,
         })
@@ -468,7 +478,7 @@ def bot_trade_records(bot: dict, rows: List[dict]) -> List[dict]:
 
 
 def bot_trades_report(rows: List[dict]) -> dict:
-    """All 14 bots plus the reference: each over its own cohort's rows."""
+    """All 16 bots plus the reference: each over its own cohort's rows."""
     race = race_rows(rows)
     c2 = cohort2_rows(rows)
     records = []
@@ -528,9 +538,9 @@ def print_table(table: dict) -> None:
     c2 = table.get("cohort2")
     if c2:
         if not c2["started"]:
-            print("\n  cohort 2 (bots 7 to 14): not started, %s" % c2["note"])
+            print("\n  cohort 2 (bots 7 to 16): not started, %s" % c2["note"])
         else:
-            print("\n  cohort 2 (bots 7 to 14), %d rows from %s" % (c2["rows"], c2["start_utc"]))
+            print("\n  cohort 2 (bots 7 to 16), %d rows from %s" % (c2["rows"], c2["start_utc"]))
             for rank, bot in enumerate(ranked_cohort2(c2), start=1):
                 print("  %-4d %-32s %11.2f %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s  missing %d"
                       % (rank, bot["label"], bot["balance_now"], bot["trades"], bot["winners"], bot["total_usd"],
@@ -540,7 +550,7 @@ def print_table(table: dict) -> None:
             print("  ref  %-32s %11.2f %6d %8d %12.2f %8.2f%% %10.2f  %-26s %s  (reference, not a bot)"
                   % (ref["label"], ref["balance_now"], ref["trades"], ref["winners"], ref["total_usd"],
                      ref["total_pct"], ref["worst_usd"], _open_text(ref), _luck_text(ref)))
-    print("\n  With 14 bots, one will lead by luck, and Bot 1 will often be it. "
+    print("\n  With 16 bots, one will lead by luck, and Bot 1 will often be it. "
           "A winner has to repeat in a second period.")
 
 

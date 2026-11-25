@@ -122,9 +122,9 @@ def test_the_six_registered_bots_are_untouched_and_the_new_ones_follow():
         "original", "hold_longer", "lower_bar", "lower_bar_hold", "calendar", "opposite"]
     assert [b["key"] for b in leaderboard.NEW_BOTS] == [
         "wide_stop", "vol_stop", "short_hold", "fade_24h", "trend_filter",
-        "event_standaside", "vol_size", "safeguards"]
+        "event_standaside", "vol_size", "safeguards", "trend_bar", "trend_only"]
     assert [b["key"] for b in leaderboard.ALL_BOTS][:6] == [b["key"] for b in leaderboard.BOTS]
-    assert len(leaderboard.ALL_BOTS) == 14
+    assert len(leaderboard.ALL_BOTS) == 16
     assert leaderboard.BOTS[5] == {"key": "opposite", "label": "Bot 6: Opposite", "variant": {}, "negate": True}
 
 
@@ -541,7 +541,9 @@ def test_the_negate_variant_is_negated_after_the_shift_and_the_size_variant_is_s
 def test_the_standings_luck_path_runs_for_cohort_2():
     section = leaderboard.standings(long_run(), with_luck=True)["cohort2"]
     for bot in section["bots"] + [section["reference"]]:
-        if bot["trades"] >= leaderboard.MIN_TRADES_FOR_LUCK:
+        if bot["key"] == "trend_only":
+            assert bot["luck_p"] is None and bot["luck_note"].startswith("n/a")
+        elif bot["trades"] >= leaderboard.MIN_TRADES_FOR_LUCK:
             assert bot["luck_p"] is not None, bot["key"]
         else:
             assert bot["luck_note"] == "need %d trades" % leaderboard.MIN_TRADES_FOR_LUCK
@@ -602,7 +604,7 @@ def test_bot_trades_json_and_tab_are_written(monkeypatch, tmp_path, capsys):
     data = json.loads((tmp_path / "backup" / "bot_trades.json").read_text())
     assert data["columns"] == leaderboard.BOT_TRADE_COLUMNS and data["trades"]
     board = json.loads((tmp_path / "backup" / "leaderboard.json").read_text())
-    assert board["cohort2"]["started"] and len(board["cohort2"]["bots"]) == 8
+    assert board["cohort2"]["started"] and len(board["cohort2"]["bots"]) == 10
     assert "cohort 2" in capsys.readouterr().out
     tab = client.tables["bot_trades"]
     assert tab[0] == leaderboard.BOT_TRADE_COLUMNS
@@ -619,12 +621,12 @@ def test_the_leaderboard_tab_keeps_its_cohort_1_layout_and_adds_cohort_2_below()
     assert rows[7] == [] and rows[8][0] == "benchmark"
     assert rows[9] == ["updated_utc", "2026-11-25T00:00:00+00:00"]
     assert rows[10] == [] and rows[11][0] == "cohort 2" and rows[12][0] == "rank"
-    labels = [r[1] for r in rows[13:22]]
+    labels = [r[1] for r in rows[13:24]]
     assert labels[-1] == "Bot 1 over the same window (reference, not a bot)"
     assert {l for l in labels[:-1]} == {b["label"] for b in leaderboard.NEW_BOTS}
-    balances = [r[2] for r in rows[13:21]]
+    balances = [r[2] for r in rows[13:23]]
     assert balances == sorted(balances, reverse=True)
-    assert rows[21][0] == "reference"
+    assert rows[23][0] == "reference"
 
 
 def test_existing_consumers_still_work_with_new_bots_registered():
@@ -632,3 +634,188 @@ def test_existing_consumers_still_work_with_new_bots_registered():
     page = build_page.build([dict(r, rules_version="v2") for r in logged_rows()])
     for bot in leaderboard.BOTS:
         assert bot["label"] in page
+
+
+# ------------------------------------------- bots 7 to 14 stay unchanged --
+
+GOLDEN_7_TO_14 = os.path.join(HERE, "fixtures", "golden_bots_7_to_14.json")
+
+
+def test_bots_7_to_14_and_the_reference_are_unchanged_by_adding_bots_15_and_16():
+    """Expected values were generated from the code as committed before bots 15
+    and 16 existed, over the pseudo random c1 dataset."""
+    with open(GOLDEN_7_TO_14, encoding="utf-8") as handle:
+        golden = json.load(handle)
+    rows = long_run()
+    keys = [b["key"] for b in leaderboard.NEW_BOTS[:8]] + [REF["key"]]
+    assert sorted(golden["bots"]) == sorted(keys)
+    for key in keys:
+        bot = REF if key == REF["key"] else ALL[key]
+        trades, position, info = leaderboard.run_bot_full(bot, rows)
+        expected = golden["bots"][key]
+        assert jsonable(trades) == expected["trades"], key
+        assert jsonable(position_dict(position)) == expected["position"], key
+        assert jsonable(info) == expected["info"], key
+    section = leaderboard.standings(rows, with_luck=True)["cohort2"]
+    entries = {b["key"]: b for b in section["bots"]}
+    entries[REF["key"]] = section["reference"]
+    for expected in golden["standings_cohort2_luck"]["bots"] + [golden["standings_cohort2_luck"]["reference"]]:
+        assert jsonable(entries[expected["key"]]) == expected, expected["key"]
+
+
+# ------------------------------------------------------------ Bot 15 -----
+
+def test_trend_bar_enters_on_a_4_when_the_trend_agrees_and_bot_1_does_not():
+    up = [row(14, 10, 100.0, 4, ma=95.0)]
+    assert run("trend_bar", up)[1].side == "long"
+    assert not run("original", up)[1].is_open
+    down = [row(14, 10, 100.0, -4, ma=105.0)]
+    assert run("trend_bar", down)[1].side == "short"
+    assert not run("original", down)[1].is_open
+
+
+def test_trend_bar_keeps_the_normal_bar_when_the_trend_disagrees_or_is_equal():
+    assert not run("trend_bar", [row(14, 10, 100.0, 4, ma=105.0)])[1].is_open
+    assert not run("trend_bar", [row(14, 10, 100.0, -4, ma=95.0)])[1].is_open
+    assert not run("trend_bar", [row(14, 10, 100.0, 4, ma=100.0)])[1].is_open
+    assert not run("trend_bar", [row(14, 10, 100.0, -4, ma=100.0)])[1].is_open
+    assert not run("trend_bar", [row(14, 10, 100.0, 5, ma=105.0)])[1].is_open
+    assert run("trend_bar", [row(14, 10, 100.0, 6, ma=105.0)])[1].side == "long"     # +6 whatever the trend
+    assert run("trend_bar", [row(14, 10, 100.0, -6, ma=95.0)])[1].side == "short"
+    assert not run("trend_bar", [row(14, 10, 100.0, 3, ma=95.0)])[1].is_open          # below even the low bar
+
+
+def test_trend_bar_still_needs_confidence_and_the_friday_rule_and_exits_like_bot_1():
+    assert not run("trend_bar", [row(14, 10, 100.0, 4, ma=95.0, confidence="low")])[1].is_open
+    assert not run("trend_bar", [row(18, 11, 100.0, 4, ma=95.0)])[1].is_open         # Friday after 10:00
+    rows = [row(14, 10, 100.0, 4, ma=95.0), row(14, 12, 101.0, -4, ma=95.0)]
+    trades, _ = run("trend_bar", rows)
+    assert [t["reason"] for t in trades] == ["reversal"]
+    rows = [row(14, 10, 100.0, 4, ma=95.0), row(14, 12, 96.9, ma=95.0)]
+    assert [t["reason"] for t in run("trend_bar", rows)[0]] == ["stop"]
+
+
+def test_trend_bar_restores_config_always():
+    saved = (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE, config.TRAILING_STOP_PCT)
+    rows = [row(14, 10, 100.0, 4, ma=95.0), row(14, 11, 100.0, 4, ma=105.0)]
+    run("trend_bar", rows)
+    replay.replay_variant(rows, entry=4, trend_entry=3)
+    assert (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE, config.TRAILING_STOP_PCT) == saved
+
+    calls = []
+    real = rules.decide
+
+    def boom(**kw):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("boom")
+        return real(**kw)
+
+    rules_decide = rules.decide
+    rules.decide = boom
+    try:
+        with pytest.raises(RuntimeError):
+            replay.replay_variant(rows, trend_entry=4)
+    finally:
+        rules.decide = rules_decide
+    assert (config.ENTRY_LONG_SCORE, config.ENTRY_SHORT_SCORE, config.TRAILING_STOP_PCT) == saved
+
+
+def test_trend_bar_missing_ma200_behaves_like_bot_1_and_counts_only_decisions_it_could_change():
+    rows = [row(14, 10, 100.0, 4)]                       # between the bars, ma200 never known
+    trades, position, info = run_full("trend_bar", rows)
+    assert not position.is_open and info["missing_input_decisions"] == 1
+    assert info["missing_by_feature"] == {"ma200": 1}
+    _, position, info = run_full("trend_bar", [row(14, 10, 100.0, 6)])
+    assert position.side == "long" and info["missing_input_decisions"] == 0          # Bot 1 would enter anyway
+    assert run_full("trend_bar", [row(14, 10, 100.0, 3)])[2]["missing_input_decisions"] == 0
+    assert run_full("trend_bar", [row(14, 10, 100.0, 4, confidence="low")])[2]["missing_input_decisions"] == 0
+    # carried forward: a known value from an earlier row is used
+    rows = [row(14, 9, 100.0, ma=95.0), row(14, 10, 100.0, 4)]
+    assert run("trend_bar", rows)[1].side == "long"
+
+
+# ------------------------------------------------------------ Bot 16 -----
+
+def test_trend_only_enters_with_no_score_and_ignores_scores_entirely():
+    rows = [row(14, 10, 100.0, ma=95.0), row(14, 11, 100.0, ma=95.0)]
+    assert run("trend_only", rows)[1].side == "long"
+    assert run("trend_only", [row(14, 10, 100.0, 0, ma=95.0)])[1].side == "long"
+    assert run("trend_only", [row(14, 10, 100.0, ma=105.0)])[1].side == "short"
+    assert not run("trend_only", [row(14, 10, 100.0, ma=100.0)])[1].is_open
+
+    def scenario(score_of):
+        return [row(14, 10, 100.0, score_of(7), ma=95.0), row(14, 11, 94.0, score_of(-5), ma=95.0),
+                row(14, 12, 93.0, score_of(8), ma=95.0), row(14, 13, 97.0, score_of(-9), ma=95.0),
+                row(14, 14, 98.0, score_of(2), ma=95.0)]
+    plain = run("trend_only", scenario(lambda s: None))
+    assert run("trend_only", scenario(lambda s: s)) == plain
+    assert run("trend_only", scenario(lambda s: -s)) == plain
+    assert len(plain[0]) == 2
+
+
+def test_trend_only_flips_with_trend_flip_and_enters_the_new_side_on_a_later_row():
+    rows = [row(14, 10, 100.0, ma=95.0), row(14, 11, 94.0, ma=95.0), row(14, 12, 93.0, ma=95.0)]
+    trades, position = run("trend_only", rows)
+    assert [(t["side"], t["reason"], t["exit_price"]) for t in trades] == [("long", "trend_flip", 94.0)]
+    assert position.side == "short" and position.entry_price == 93.0
+    assert not run("trend_only", rows[:2])[1].is_open      # flat on the flip row itself
+    assert trades[0]["pnl_usd"] == pytest.approx(-6.0 - config.SPREAD_USD_PER_BBL)
+    assert set(trades[0]) == set(run("original", [row(14, 10, 100.0, 7), row(14, 12, 101.0, -5)])[0][0])
+    equal = rows[:1] + [row(14, 11, 95.0, ma=95.0)]
+    assert run("trend_only", equal)[1].is_open             # equal is not on the other side
+
+
+def test_trend_only_closes_on_friday_and_takes_no_new_entry_late_on_friday():
+    rows = [row(17, 10, 100.0, ma=95.0), row(18, 15, 101.0, minute=5, ma=95.0)]
+    trades, position = run("trend_only", rows)
+    assert [t["reason"] for t in trades] == ["friday"] and not position.is_open
+    assert not run("trend_only", [row(18, 11, 100.0, ma=95.0)])[1].is_open
+    late = [row(17, 10, 100.0, ma=95.0), row(19, 12, 101.0, ma=95.0)]    # Saturday: the late weekend close
+    assert [t["reason"] for t in run("trend_only", late)[0]] == ["friday"]
+
+
+def test_trend_only_stays_flat_with_unknown_ma200_and_counts_the_rows():
+    rows = [row(14, 10, 100.0, ctx=False), row(14, 11, 101.0, ctx=False), row(14, 12, None, ctx=False)]
+    rows[2]["brent_price"] = ""
+    trades, position, info = run_full("trend_only", rows)
+    assert trades == [] and not position.is_open
+    assert info["missing_input_decisions"] == 2 and info["missing_by_feature"] == {"ma200": 2}
+    carried = [row(14, 10, 100.0, ma=95.0), row(14, 11, 101.0)]
+    assert run_full("trend_only", carried)[2]["missing_input_decisions"] == 0
+
+
+def test_trend_only_has_no_luck_p_and_the_shuffle_never_runs_for_it(monkeypatch):
+    def boom(*a, **k):
+        raise AssertionError("the shuffle must not run for a bot that reads no news")
+
+    monkeypatch.setattr(replay, "shuffled_strategy", boom)
+    bot = ALL["trend_only"]
+    rows = long_run()
+    trades, _ = leaderboard.run_bot(bot, rows)
+    assert len(trades) >= leaderboard.MIN_TRADES_FOR_LUCK
+    assert leaderboard._luck(bot, rows, trades, 1.0, True) == (None, "n/a, reads no news")
+
+
+def test_trend_only_is_logged_with_mfe_and_mae_and_no_stop():
+    rows = [row(14, 10, 100.0, ma=95.0, flags="opec_day"), row(14, 11, 103.0, ma=95.0), row(14, 12, 94.0, ma=95.0)]
+    records = records_for(rows, "trend_only")
+    first = records[0]
+    assert (first["exit_reason"], first["cohort"], first["stop_pct"], first["event_flags"]) == ("trend_flip", 2, "", "opec_day")
+    assert first["mfe_pct"] == pytest.approx(3.0) and first["mae_pct"] == pytest.approx(-6.0)
+
+
+# ---------------------------------------- cohort 2 with bots 15 and 16 ---
+
+def test_cohort_2_standings_include_bots_15_and_16():
+    section = leaderboard.standings(long_run(), with_luck=False)["cohort2"]
+    keys = [b["key"] for b in section["bots"]]
+    assert keys[-2:] == ["trend_bar", "trend_only"] and len(keys) == 10
+    by_key = {b["key"]: b for b in section["bots"]}
+    assert by_key["trend_bar"]["trades"] > 0 and by_key["trend_only"]["trades"] > 0
+    assert by_key["trend_only"]["luck_note"] == "n/a, reads no news"
+    assert section["reference"]["key"] == "original_same_window"
+    table = leaderboard.standings(long_run(), with_luck=False)
+    assert len(table["bots"]) == 6
+    report = leaderboard.bot_trades_report(long_run())
+    assert {"trend_bar", "trend_only"} <= {t["bot"] for t in report["trades"]}

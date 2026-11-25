@@ -17,6 +17,8 @@ venv/
 # The frozen record of bots 1 to 6 that the golden test compares against.
 # Holds replayed trades only, no credentials. One path.
 !tests/fixtures/golden_bots_1_to_6.json
+# The same record for bots 7 to 14, taken before bots 15 and 16 were added.
+!tests/fixtures/golden_bots_7_to_14.json
 .pytest_cache/
 # Feed B leaderboard, written by scripts.leaderboard_b in the weekly backup. One more exact path.
 !backup/leaderboard_b.json
