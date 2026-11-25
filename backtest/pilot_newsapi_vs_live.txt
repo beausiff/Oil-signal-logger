@@ -1,1 +1,3 @@
-NO KEY: secret NEWSAPI_AI_KEY is not set
+PROBE ONLY (1 request, day 2026-11-25): ok, see the job log for the response shape
+totalResults 1094, pages 11, articles on page 1 100
+NewsAPI.ai requests used: 1 of 300
