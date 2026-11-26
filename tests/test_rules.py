@@ -251,3 +251,34 @@ def test_short_pnl_deducts_the_spread():
 def test_losing_trade_is_negative():
     usd, pct = rules.pnl("long", 80.0, 79.0)
     assert usd < 0 and pct < 0
+
+
+# ---------------------------------------------------------------- race costs --
+
+from datetime import datetime as _dt, timezone as _tz
+
+
+def _utc(d, h):
+    return _dt(2026, 11, d, h, 0, tzinfo=_tz.utc)
+
+
+def test_trade_pnl_without_times_is_the_old_flat_pnl():
+    assert rules.trade_pnl("long", 100.0, 102.0, None, None) == rules.pnl("long", 100.0, 102.0)
+
+
+def test_daytime_same_day_trade_pays_only_the_normal_spread():
+    # Tue 24 Nov 10:00 to 15:00 UTC: no rollover, both legs in day hours.
+    assert rules.trade_pnl("long", 100.0, 102.0, _utc(24, 10), _utc(24, 15)) == rules.pnl("long", 100.0, 102.0)
+
+
+def test_night_legs_pay_a_wider_spread():
+    usd, _ = rules.trade_pnl("long", 100.0, 102.0, _utc(24, 3), _utc(24, 4))
+    assert usd == pytest.approx(2.0 - 0.05 * config.NIGHT_SPREAD_MULT)
+
+
+def test_financing_per_rollover_and_triple_on_friday():
+    assert rules.rollover_nights(_utc(24, 10), _utc(24, 20)) == 0
+    assert rules.rollover_nights(_utc(24, 10), _utc(25, 10)) == 1          # Tue night
+    assert rules.rollover_nights(_utc(26, 10), _utc(30, 10)) == 1 + 3      # Thu, then Fri x3
+    usd, _ = rules.trade_pnl("short", 100.0, 98.0, _utc(24, 10), _utc(26, 10))
+    assert usd == pytest.approx(2.0 - 0.05 - 2 * 100.0 * config.FINANCING_PCT_PER_NIGHT / 100.0)

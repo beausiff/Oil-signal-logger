@@ -286,9 +286,10 @@ def _loop(rows, use_reversal, stop_pct, vol_stop_mult, max_hold_hours, trend_fil
             exit_price = price
             if exit_price is None:
                 exit_price = last_price if last_price is not None else before.entry_price
-            usd, pct = rules.pnl(before.side, before.entry_price or 0.0, exit_price or 0.0)
             entry_at = parse_utc(before.entry_utc or "")
             exit_at = parse_utc(str(row.get("run_utc", "")))
+            usd, pct = rules.trade_pnl(before.side, before.entry_price or 0.0, exit_price or 0.0,
+                                       entry_at, exit_at)
             hours = round((exit_at - entry_at).total_seconds() / 3600.0, 1) if (entry_at and exit_at) else ""
             trade = {
                 "side": before.side,
@@ -361,8 +362,9 @@ def trend_only(rows: List[dict], with_position: bool = False, info: Optional[dic
                     (position.side == "long" and price < ma) or (position.side == "short" and price > ma)):
                 reason = "trend_flip"
             if reason and exit_price is not None:
-                usd, pct = rules.pnl(position.side, position.entry_price or 0.0, exit_price)
                 entry_at, exit_at = parse_utc(position.entry_utc or ""), parse_utc(run_utc)
+                usd, pct = rules.trade_pnl(position.side, position.entry_price or 0.0, exit_price,
+                                           entry_at, exit_at)
                 hours = round((exit_at - entry_at).total_seconds() / 3600.0, 1) if (entry_at and exit_at) else ""
                 trades.append({"side": position.side, "entry_utc": position.entry_utc,
                                "entry_price": position.entry_price, "entry_score": 0,
@@ -427,7 +429,8 @@ def calendar_only(rows: List[dict], use_stop: bool = False, with_position: bool 
     last_price = None
 
     def close(row, price, reason):
-        usd, pct = rules.pnl("long", position.entry_price or 0.0, price)
+        usd, pct = rules.trade_pnl("long", position.entry_price or 0.0, price,
+                                   parse_utc(position.entry_utc or ""), parse_utc(str(row.get("run_utc", ""))))
         trades.append({"side": "long", "entry_utc": position.entry_utc,
                        "entry_price": position.entry_price,
                        "exit_utc": str(row.get("run_utc", "")), "exit_price": price,

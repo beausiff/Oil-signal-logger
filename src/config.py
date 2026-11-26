@@ -88,6 +88,16 @@ EXIT_SHORT_SCORE = 3
 ENTRY_CONFIDENCES = ("medium", "high")
 TRAILING_STOP_PCT = 3.0
 SPREAD_USD_PER_BBL = 0.05
+
+# Race costs (rules.trade_pnl, used by the replayed bots and the race page,
+# not by the live paper position above). A leg filled in thin hours pays
+# NIGHT_SPREAD_MULT times its half of the spread. Every rollover a position
+# is held through costs FINANCING_PCT_PER_NIGHT of the entry price, a Friday
+# rollover counts 3 for the weekend. Rough CFD broker figures, both sides pay.
+NIGHT_HOURS_UTC = (21, 7)          # from 21:00 to 07:00 UTC
+NIGHT_SPREAD_MULT = 2.0
+ROLLOVER_HOUR_UTC = 21             # about 17:00 New York
+FINANCING_PCT_PER_NIGHT = 0.02
 POSITION_SIZE_UNITS = 1
 
 # --------------------------------------------------------------- broker ----

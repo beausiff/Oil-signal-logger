@@ -7,7 +7,7 @@ tested, because these rules are the experiment.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -123,6 +123,41 @@ def pnl(side: str, entry_price: float, exit_price: float) -> tuple:
     """Dollars per barrel and percent, after one round trip of spread."""
     gross = (exit_price - entry_price) if side == "long" else (entry_price - exit_price)
     net = gross - config.SPREAD_USD_PER_BBL
+    pct = (net / entry_price) * 100.0 if entry_price else 0.0
+    return round(net, 4), round(pct, 4)
+
+
+def _is_night(when: datetime) -> bool:
+    start, end = config.NIGHT_HOURS_UTC
+    return when.hour >= start or when.hour < end
+
+
+def rollover_nights(entry_utc: datetime, exit_utc: datetime) -> int:
+    """Rollovers held through, a Friday one counting 3 for the weekend."""
+    if entry_utc is None or exit_utc is None or exit_utc <= entry_utc:
+        return 0
+    nights = 0
+    day = entry_utc.replace(hour=config.ROLLOVER_HOUR_UTC, minute=0, second=0, microsecond=0)
+    if day <= entry_utc:
+        day += timedelta(days=1)
+    while day <= exit_utc:
+        if day.weekday() < 5:
+            nights += 3 if day.weekday() == FRIDAY else 1
+        day += timedelta(days=1)
+    return nights
+
+
+def trade_pnl(side: str, entry_price: float, exit_price: float,
+              entry_utc: Optional[datetime], exit_utc: Optional[datetime]) -> tuple:
+    """Dollars per barrel and percent after spread (wider in thin hours) and
+    overnight financing. Without times it is exactly pnl()."""
+    if entry_utc is None or exit_utc is None:
+        return pnl(side, entry_price, exit_price)
+    gross = (exit_price - entry_price) if side == "long" else (entry_price - exit_price)
+    half = config.SPREAD_USD_PER_BBL / 2.0
+    spread = sum(half * (config.NIGHT_SPREAD_MULT if _is_night(t) else 1.0) for t in (entry_utc, exit_utc))
+    financing = entry_price * config.FINANCING_PCT_PER_NIGHT / 100.0 * rollover_nights(entry_utc, exit_utc)
+    net = gross - spread - financing
     pct = (net / entry_price) * 100.0 if entry_price else 0.0
     return round(net, 4), round(pct, 4)
 

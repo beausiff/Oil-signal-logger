@@ -5,12 +5,20 @@ import json
 import pytest
 
 from scripts import leaderboard
-from src import main, rules
+from src import config, main, rules
 from src.sheets import SIGNALS
 from tests.fakes import FakeSheets
 from tests.test_audit_fixes import chi_row, scored
 from tests.test_main import wire_news, wire_price, fake_headline, wired  # noqa: F401
 
+
+
+@pytest.fixture
+def flat_costs(monkeypatch):
+    """The old flat cost: one $0.05 round trip, no night spread, no financing.
+    These tests pin trade decisions, which the cost model must never change."""
+    monkeypatch.setattr(config, "NIGHT_SPREAD_MULT", 1.0)
+    monkeypatch.setattr(config, "FINANCING_PCT_PER_NIGHT", 0.0)
 
 def v2(row, version="v2"):
     return dict(row, rules_version=version)
@@ -41,7 +49,7 @@ def test_all_six_bots_in_fixed_order():
         "original", "hold_longer", "lower_bar", "lower_bar_hold", "calendar", "opposite"]
 
 
-def test_opposite_shorts_where_the_original_buys_and_mirrors_it():
+def test_opposite_shorts_where_the_original_buys_and_mirrors_it(flat_costs):
     bots = by_key(leaderboard.standings(long_week()))
     assert bots["original"]["trades"] == bots["opposite"]["trades"] == 1
     # Long 100 to 103 and short 100 to 103: gross mirrors, each pays the spread.
@@ -50,7 +58,7 @@ def test_opposite_shorts_where_the_original_buys_and_mirrors_it():
     assert bots["original"]["total_usd"] + bots["opposite"]["total_usd"] == pytest.approx(-0.10)
 
 
-def test_hold_longer_ignores_a_reversal():
+def test_hold_longer_ignores_a_reversal(flat_costs):
     bots = by_key(leaderboard.standings(long_week(reversal=True)))
     assert bots["original"]["total_usd"] == pytest.approx(1.0 - 0.05)    # out at 101
     assert bots["hold_longer"]["total_usd"] == pytest.approx(3.0 - 0.05)  # out at the Friday close
