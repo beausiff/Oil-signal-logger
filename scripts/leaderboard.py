@@ -231,7 +231,9 @@ def _bot_entry(bot: dict, race: List[dict], now_price: Optional[float], with_luc
         unrealised = None
         size = (info.get("open") or {}).get("size")
         if now_price is not None and position.entry_price is not None:
-            unrealised, unrealised_pct = rules.pnl(position.side, position.entry_price, now_price)
+            unrealised, unrealised_pct = rules.trade_pnl(
+                position.side, position.entry_price, now_price, parse_utc(position.entry_utc or ""),
+                parse_utc(str(race[-1].get("run_utc", ""))) if race else None)
             if size is not None:
                 unrealised, unrealised_pct = unrealised * size, unrealised_pct * size
             balance_now = balance * (1.0 + unrealised_pct / 100.0)
@@ -468,8 +470,10 @@ def bot_trade_records(bot: dict, rows: List[dict]) -> List[dict]:
         t = {"side": position.side, "entry_utc": position.entry_utc, "entry_price": position.entry_price,
              "entry_score": position.entry_score}
         t.update({k: v for k, v in open_info.items() if k in ("stop_pct", "size")})
-        pct = rules.pnl(position.side, position.entry_price, now_price)[1] if now_price is not None else ""
         last_utc = str(rows[-1].get("run_utc", "")) if rows else ""
+        pct = (rules.trade_pnl(position.side, position.entry_price, now_price,
+                               parse_utc(position.entry_utc or ""), parse_utc(last_utc))[1]
+               if now_price is not None else "")
         record("open", t, "", now_price if now_price is not None else "", "open",
                pct, _hours_between(position.entry_utc, last_utc))
         if pct == "":

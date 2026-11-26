@@ -566,7 +566,8 @@ def scoreboard_html(table: dict, race) -> str:
     out.append('<div class="tablebox"><table>\n<thead>%s</thead>\n<tbody>\n%s\n</tbody></table></div>'
                % (head, "\n".join(body)))
     out.append('<p class="note">Each bot started the race with $100 of pretend money and puts all of it into '
-               'every trade, with no borrowing. With %d bots, 1 will be ahead by luck, so a winner has to '
+               'every trade, with no borrowing. Returns are after costs: the spread (doubled at night) and an '
+               'overnight fee of 0.02%% a night, 3 nights on a Friday. With %d bots, 1 will be ahead by luck, so a winner has to '
                'win a second 4 weeks before it counts.%s</p>\n</section>'
                % (len(bots), REPLAY_NOTE if len(bots) > len(leaderboard.BOTS) else ""))
     return "\n".join(out)

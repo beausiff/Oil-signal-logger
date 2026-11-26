@@ -24,6 +24,14 @@ ALL = {b["key"]: b for b in leaderboard.ALL_BOTS}
 REF = leaderboard.REFERENCE_BOT
 
 
+
+@pytest.fixture
+def flat_costs(monkeypatch):
+    """The old flat cost: one $0.05 round trip, no night spread, no financing.
+    These tests pin trade decisions, which the cost model must never change."""
+    monkeypatch.setattr(config, "NIGHT_SPREAD_MULT", 1.0)
+    monkeypatch.setattr(config, "FINANCING_PCT_PER_NIGHT", 0.0)
+
 def row(day, hour, price, score=None, minute=0, version="v2", ctx=True, vol=None, ma=None, flags="", **extra):
     """A Chicago time row in September 2026 (14 is a Monday). ctx=True adds
     context_version c1 and the three context columns."""
@@ -74,7 +82,7 @@ def cohort1_view(table):
     return out
 
 
-def test_bots_1_to_6_golden_trades_and_positions_are_exactly_unchanged():
+def test_bots_1_to_6_golden_trades_and_positions_are_exactly_unchanged(flat_costs):
     golden, rows = load_golden()
     race = leaderboard.race_rows(rows)
     everything = sorted(rows, key=lambda r: str(r.get("run_utc", "")))
@@ -94,7 +102,7 @@ def test_the_golden_input_actually_exercises_the_bots():
     assert all(n >= 4 for n in counts.values()), counts
 
 
-def test_replay_output_is_exactly_unchanged():
+def test_replay_output_is_exactly_unchanged(flat_costs):
     golden, rows = load_golden()
     everything = sorted(rows, key=lambda r: str(r.get("run_utc", "")))
     trades, position, skipped = replay.replay(everything)
@@ -105,7 +113,7 @@ def test_replay_output_is_exactly_unchanged():
     assert replay.replay_variant(everything) == replay.replay(everything)
 
 
-def test_standings_for_bots_1_to_6_are_identical_including_luck_p():
+def test_standings_for_bots_1_to_6_are_identical_including_luck_p(flat_costs):
     """Luck p is deterministic: every circular shift is run, nothing is drawn."""
     golden, rows = load_golden()
     relabelled = [dict(r, rules_version="v2") for r in rows]
@@ -223,7 +231,7 @@ def test_the_friday_close_beats_the_time_exit():
     assert [t["reason"] for t in trades] == ["friday"]
 
 
-def test_fade_24h_is_the_opposite_bot_with_the_time_exit():
+def test_fade_24h_is_the_opposite_bot_with_the_time_exit(flat_costs):
     rows = [row(14, 10, 100.0, 7, ctx=False), row(15, 10, 99.0, ctx=False)]
     trades, position = run("fade_24h", rows)
     assert not position.is_open
@@ -641,7 +649,7 @@ def test_existing_consumers_still_work_with_new_bots_registered():
 GOLDEN_7_TO_14 = os.path.join(HERE, "fixtures", "golden_bots_7_to_14.json")
 
 
-def test_bots_7_to_14_and_the_reference_are_unchanged_by_adding_bots_15_and_16():
+def test_bots_7_to_14_and_the_reference_are_unchanged_by_adding_bots_15_and_16(flat_costs):
     """Expected values were generated from the code as committed before bots 15
     and 16 existed, over the pseudo random c1 dataset."""
     with open(GOLDEN_7_TO_14, encoding="utf-8") as handle:
