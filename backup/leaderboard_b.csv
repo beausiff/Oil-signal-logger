@@ -1,21 +1,21 @@
 rank,bot,$100 is now,trades,winners,total_usd,total_pct,worst_usd,open_side,open_entry,open_unrealised_usd
-1,Bot 5B: Calendar only,102.6687,0,0,0,0,0,long,92.18,2.46
-2,Bot 1B: Original,101.4906,0,0,0,0,0,long,93.25,1.39
-3,Bot 2B: Hold longer,101.4906,0,0,0,0,0,long,93.25,1.39
-4,Bot 3B: Lower bar,101.4906,0,0,0,0,0,long,93.25,1.39
-5,Bot 4B: Lower bar + hold longer,101.4906,0,0,0,0,0,long,93.25,1.39
-6,Bot 6B: Opposite,98.4021,0,0,0,0,0,short,93.25,-1.49
+1,Bot 5B: Calendar only,102.4626,0,0,0,0,0,long,92.18,2.27
+2,Bot 1B: Original,101.2869,0,0,0,0,0,long,93.25,1.2
+3,Bot 2B: Hold longer,101.2869,0,0,0,0,0,long,93.25,1.2
+4,Bot 3B: Lower bar,101.2869,0,0,0,0,0,long,93.25,1.2
+5,Bot 4B: Lower bar + hold longer,101.2869,0,0,0,0,0,long,93.25,1.2
+6,Bot 6B: Opposite,98.6059,0,0,0,0,0,short,93.25,-1.3
 ,,,,,,,,,,
-benchmark,Buy and hold,102.7229,,,2.51,2.7229,,,,
+benchmark,Buy and hold,102.5168,,,2.32,2.5168,,,,
 ,,,,,,,,,,
 paired comparison over the common period (rows in both feeds),,,,,,,,,,
 pair,main bot,B bot,main $100 is now,B $100 is now,B minus main,main trades,B trades,,,
-1 vs 1B,Bot 1: Original,Bot 1B: Original,100,101.4906,1.4906,0,0,,,
-2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,101.4906,1.4906,0,0,,,
-3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,101.3928,101.4906,0.0978,0,0,,,
-4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,101.3928,101.4906,0.0978,0,0,,,
-5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,102.6687,102.6687,0,0,0,,,
-6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,98.4021,-1.5979,0,0,,,
-common_rows,13,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T02:05:33.068462+00:00,,,,,
+1 vs 1B,Bot 1: Original,Bot 1B: Original,100,101.2869,1.2869,0,0,,,
+2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,101.2869,1.2869,0,0,,,
+3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,101.1892,101.2869,0.0977,0,0,,,
+4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,101.1892,101.2869,0.0977,0,0,,,
+5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,102.4626,102.4626,0,0,0,,,
+6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,98.6059,-1.3941,0,0,,,
+common_rows,14,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T03:05:32.105031+00:00,,,,,
 feed_b_start,2026-11-25T13:05:38.492742+00:00,,,,,,,,,
-updated_utc,2026-11-26T02:06:21.779311+00:00,,,,,,,,,
+updated_utc,2026-11-26T03:06:21.693529+00:00,,,,,,,,,
