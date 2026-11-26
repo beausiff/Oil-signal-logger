@@ -1,21 +1,21 @@
 rank,bot,$100 is now,trades,winners,total_usd,total_pct,worst_usd,open_side,open_entry,open_unrealised_usd
-1,Bot 5B: Calendar only,104.4278,0,0,0,0,0,long,92.18,4.0816
-2,Bot 1B: Original,103.2293,0,0,0,0,0,long,93.25,3.0113
-3,Bot 2B: Hold longer,103.2293,0,0,0,0,0,long,93.25,3.0113
-4,Bot 3B: Lower bar,103.2293,0,0,0,0,0,long,93.25,3.0113
-5,Bot 4B: Lower bar + hold longer,103.2293,0,0,0,0,0,long,93.25,3.0113
+1,Bot 5B: Calendar only,104.6448,0,0,0,0,0,long,92.18,4.2816
+2,Bot 1B: Original,103.4438,0,0,0,0,0,long,93.25,3.2114
+3,Bot 2B: Hold longer,103.4438,0,0,0,0,0,long,93.25,3.2114
+4,Bot 3B: Lower bar,103.4438,0,0,0,0,0,long,93.25,3.2114
+5,Bot 4B: Lower bar + hold longer,103.4438,0,0,0,0,0,long,93.25,3.2114
 6,Bot 6B: Opposite,96.913,1,0,-2.8787,-3.087,-2.8787,flat,,
 ,,,,,,,,,,
-benchmark,Buy and hold,104.5021,,,4.15,4.5021,,,,
+benchmark,Buy and hold,104.719,,,4.35,4.719,,,,
 ,,,,,,,,,,
 paired comparison over the common period (rows in both feeds),,,,,,,,,,
 pair,main bot,B bot,main $100 is now,B $100 is now,B minus main,main trades,B trades,,,
-1 vs 1B,Bot 1: Original,Bot 1B: Original,100,103.2293,3.2293,0,0,,,
-2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,103.2293,3.2293,0,0,,,
-3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,103.1298,103.2293,0.0995,0,0,,,
-4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,103.1298,103.2293,0.0995,0,0,,,
-5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,104.4278,104.4278,0,0,0,,,
+1 vs 1B,Bot 1: Original,Bot 1B: Original,100,103.4438,3.4438,0,0,,,
+2 vs 2B,Bot 2: Hold longer,Bot 2B: Hold longer,100,103.4438,3.4438,0,0,,,
+3 vs 3B,Bot 3: Lower bar,Bot 3B: Lower bar,103.344,103.4438,0.0998,0,0,,,
+4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,103.344,103.4438,0.0998,0,0,,,
+5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,104.6448,104.6448,0,0,0,,,
 6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,96.913,-3.087,0,1,,,
-common_rows,29,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T18:05:46.560474+00:00,,,,,
+common_rows,30,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T19:05:37.810827+00:00,,,,,
 feed_b_start,2026-11-25T13:05:38.492742+00:00,,,,,,,,,
-updated_utc,2026-11-26T18:06:52.156522+00:00,,,,,,,,,
+updated_utc,2026-11-26T19:06:43.979730+00:00,,,,,,,,,
