@@ -16,6 +16,6 @@ pair,main bot,B bot,main $100 is now,B $100 is now,B minus main,main trades,B tr
 4 vs 4B,Bot 4: Lower bar + hold longer,Bot 4B: Lower bar + hold longer,103.2973,103.397,0.0997,0,0,,,
 5 vs 5B,Bot 5: Calendar only,Bot 5B: Calendar only,104.5977,104.5977,0,0,0,,,
 6 vs 6B,Bot 6: Opposite,Bot 6B: Opposite,100,96.913,-3.087,0,1,,,
-common_rows,33,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T22:05:39.994928+00:00,,,,,
+common_rows,34,from,2026-11-25T13:05:38.492742+00:00,to,2026-11-26T23:05:36.307507+00:00,,,,,
 feed_b_start,2026-11-25T13:05:38.492742+00:00,,,,,,,,,
-updated_utc,2026-11-26T22:06:37.099534+00:00,,,,,,,,,
+updated_utc,2026-11-26T23:06:25.242548+00:00,,,,,,,,,
