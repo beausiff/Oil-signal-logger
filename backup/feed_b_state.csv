@@ -1,11 +1,11 @@
 key,value
 start_utc,2026-11-25T13:05:38.492742+00:00
-requests_used,42
-last_main_run_utc,2026-11-27T03:05:35.895163+00:00
+requests_used,43
+last_main_run_utc,2026-11-27T04:05:42.855469+00:00
 position,long
 entry_price,93.25
 entry_utc,2026-11-25T15:05:36.381474+00:00
 entry_score,6
 best_price,96.56
 trade_id,T-20261125T1505-L
-last_run_utc,2026-11-27T03:06:24.047714+00:00
+last_run_utc,2026-11-27T04:06:22.188231+00:00
